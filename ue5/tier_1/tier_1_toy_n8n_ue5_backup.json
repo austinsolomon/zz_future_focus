@@ -1,0 +1,262 @@
+{
+  "name": "UE5 Project Backup Automation - Tier 1 Toy Example",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule: Daily at Midnight",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "tier1_ue5_schedule",
+      "notes": "TIER 1 CHARACTERISTIC: Time-based trigger - runs every night automatically"
+    },
+    {
+      "parameters": {
+        "command": "find {{$env.UE5_PROJECT_PATH}} -type f -newer {{$env.LAST_BACKUP_MARKER}} | wc -l"
+      },
+      "name": "Check for Changed Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "id": "tier1_check_changes",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic file check - counts files modified since last backup"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Simple comparison - no AI decision\nconst changedFiles = parseInt($input.first().json.stdout) || 0;\nconst shouldBackup = changedFiles > 0;\n\nreturn [{\n  json: {\n    changedFiles,\n    shouldBackup,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Evaluate Backup Need",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "tier1_evaluate",
+      "notes": "TIER 1 CHARACTERISTIC: Simple if/then logic - backup if files changed, skip if not"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.shouldBackup}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "If Files Changed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "id": "tier1_if_changed",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic branching - simple boolean condition"
+    },
+    {
+      "parameters": {
+        "command": "cd {{$env.UE5_PROJECT_PATH}} && tar -czf /tmp/ue5_backup_{{$now.toFormat('yyyyMMdd_HHmmss')}}.tar.gz ."
+      },
+      "name": "Create Zip Archive",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "id": "tier1_create_zip",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic compression - same command every time"
+    },
+    {
+      "parameters": {
+        "command": "ls -lh /tmp/ue5_backup_*.tar.gz | tail -1"
+      },
+      "name": "Get Archive Info",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 200],
+      "id": "tier1_archive_info",
+      "notes": "TIER 1 CHARACTERISTIC: Simple file metadata extraction"
+    },
+    {
+      "parameters": {
+        "authentication": "generic Credential Type",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "={{$env.CLOUD_STORAGE_URL}}/upload",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "file",
+                "value": "={{$binary.data}}"
+              },
+              {
+                "name": "path",
+                "value": "/ue5_backups/"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Upload to Cloud Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 350],
+      "id": "tier1_upload",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic upload to cloud storage"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Simple log generation - no analysis\nconst archiveInfo = $('Get Archive Info').first().json.stdout;\nconst timestamp = new Date().toISOString();\n\nconst logEntry = {\n  timestamp,\n  workflow: 'ue5_project_backup',\n  status: 'completed',\n  archiveInfo,\n  uploaded: true\n};\n\n// Write to log file\nconst fs = require('fs');\nconst logPath = process.env.BACKUP_LOG_PATH || '/var/log/ue5_backup.log';\nfs.appendFileSync(logPath, JSON.stringify(logEntry) + '\\n');\n\nreturn [{ json: logEntry }];"
+      },
+      "name": "Log Backup Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 350],
+      "id": "tier1_log_completion",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic logging to file"
+    },
+    {
+      "parameters": {
+        "command": "touch {{$env.LAST_BACKUP_MARKER}}"
+      },
+      "name": "Update Backup Marker",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 275],
+      "id": "tier1_update_marker",
+      "notes": "TIER 1 CHARACTERISTIC: Update timestamp marker for next backup check"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Simple skip log\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: 'ue5_project_backup',\n  status: 'skipped',\n  reason: 'no_changes_detected'\n};\n\nconsole.log('Backup skipped:', logEntry);\nreturn [{ json: logEntry }];"
+      },
+      "name": "Log Backup Skipped",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400],
+      "id": "tier1_log_skipped",
+      "notes": "TIER 1 CHARACTERISTIC: Log when backup is skipped"
+    }
+  ],
+  "connections": {
+    "Schedule: Daily at Midnight": {
+      "main": [
+        [
+          {
+            "node": "Check for Changed Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Changed Files": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Backup Need",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Backup Need": {
+      "main": [
+        [
+          {
+            "node": "If Files Changed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Files Changed": {
+      "main": [
+        [
+          {
+            "node": "Create Zip Archive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload to Cloud Storage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Backup Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Zip Archive": {
+      "main": [
+        [
+          {
+            "node": "Get Archive Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Archive Info": {
+      "main": [
+        [
+          {
+            "node": "Log Backup Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Cloud Storage": {
+      "main": [
+        [
+          {
+            "node": "Log Backup Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Backup Completion": {
+      "main": [
+        [
+          {
+            "node": "Update Backup Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-11-17T00:00:00.000Z",
+      "updatedAt": "2025-11-17T00:00:00.000Z",
+      "id": "2",
+      "name": "tier_1_toy_example"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

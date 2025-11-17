@@ -1,0 +1,332 @@
+{
+  "name": "UE5 Asset Quality Tagger - Tier 2 Toy Example",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "={{$env.UE5_ASSET_WATCH_PATH}}",
+        "event": "add",
+        "options": {
+          "filters": {
+            "files": "*.png,*.jpg,*.jpeg,*.fbx,*.uasset"
+          }
+        }
+      },
+      "name": "File Watcher: New Asset",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "tier2_ue5_file_trigger",
+      "notes": "TIER 2 CHARACTERISTIC: Event-based trigger - responds to new asset files"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 2: Extract file metadata before AI analysis\nconst filePath = $input.first().json.path;\nconst fs = require('fs');\nconst path = require('path');\n\nconst fileStats = fs.statSync(filePath);\nconst fileName = path.basename(filePath);\nconst fileExt = path.extname(filePath);\n\n// Determine if it's an image (for vision API) or 3D asset\nconst isImage = ['.png', '.jpg', '.jpeg'].includes(fileExt.toLowerCase());\nconst is3DAsset = ['.fbx', '.uasset'].includes(fileExt.toLowerCase());\n\nreturn [{\n  json: {\n    filePath,\n    fileName,\n    fileExt,\n    fileSize: fileStats.size,\n    isImage,\n    is3DAsset,\n    createdAt: fileStats.birthtime.toISOString()\n  }\n}];"
+      },
+      "name": "Extract Asset Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "tier2_ue5_extract_metadata",
+      "notes": "TIER 2: Prepare asset data for AI analysis"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.isImage}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Branch: Image or 3D Asset",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "tier2_ue5_branch",
+      "notes": "TIER 2: Route to appropriate AI analysis"
+    },
+    {
+      "parameters": {
+        "filePath": "={{$('Extract Asset Metadata').first().json.filePath}}",
+        "options": {
+          "encoding": "base64"
+        }
+      },
+      "name": "Read Image File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "id": "tier2_ue5_read_image",
+      "notes": "TIER 2: Load image for vision analysis"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "requestMethod": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 300,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Analyze this UE5 game asset image. Rate the quality (LOW, MEDIUM, HIGH) and provide 2-3 word tags. Respond in JSON format: {\\\"quality\\\": \\\"HIGH|MEDIUM|LOW\\\", \\\"tags\\\": [\\\"tag1\\\", \\\"tag2\\\"], \\\"notes\\\": \\\"brief description\\\"}\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $('Read Image File').first().binary.data.toString('base64') }}\"\n          }\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Call ChatGPT Vision API: Analyze Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI API"
+        }
+      },
+      "id": "tier2_ue5_vision_analysis",
+      "notes": "TIER 2 KEY: Vision AI analyzes asset quality - semantic understanding of visuals"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 2: For 3D assets, analyze filename and metadata\nconst metadata = $('Extract Asset Metadata').first().json;\nconst fileName = metadata.fileName;\nconst fileSize = metadata.fileSize;\n\n// Simple heuristic-based quality assessment\nlet quality = 'MEDIUM';\nlet tags = [];\nlet notes = '';\n\n// Check file size (larger = potentially higher quality)\nif (fileSize > 50 * 1024 * 1024) { // > 50MB\n  quality = 'HIGH';\n  tags.push('high-poly');\n  notes = 'Large file size suggests detailed model';\n} else if (fileSize < 5 * 1024 * 1024) { // < 5MB\n  quality = 'LOW';\n  tags.push('low-poly');\n  notes = 'Small file size suggests optimized/simple model';\n} else {\n  tags.push('medium-poly');\n  notes = 'Moderate file size';\n}\n\n// Extract tags from filename patterns\nif (fileName.toLowerCase().includes('character')) tags.push('character');\nif (fileName.toLowerCase().includes('prop')) tags.push('prop');\nif (fileName.toLowerCase().includes('environment')) tags.push('environment');\nif (fileName.toLowerCase().includes('lod')) tags.push('lod-optimized');\n\nreturn [{\n  json: {\n    quality,\n    tags,\n    notes,\n    analysis_type: 'heuristic'\n  }\n}];"
+      },
+      "name": "Analyze 3D Asset (Heuristic)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400],
+      "id": "tier2_ue5_3d_analysis",
+      "notes": "TIER 2: Rule-based analysis for 3D assets (not images)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 2: Parse AI response and extract quality assessment\nconst visionResponse = $input.first().json;\nconst aiContent = visionResponse.choices[0].message.content;\n\n// Parse JSON response from ChatGPT\nlet analysis;\ntry {\n  analysis = JSON.parse(aiContent);\n} catch (err) {\n  // Fallback if JSON parsing fails\n  analysis = {\n    quality: 'MEDIUM',\n    tags: ['unclassified'],\n    notes: 'Failed to parse AI response'\n  };\n}\n\nreturn [{\n  json: {\n    quality: analysis.quality || 'MEDIUM',\n    tags: analysis.tags || [],\n    notes: analysis.notes || '',\n    analysis_type: 'vision_ai'\n  }\n}];"
+      },
+      "name": "Parse Vision Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200],
+      "id": "tier2_ue5_parse_vision",
+      "notes": "TIER 2: Extract structured data from vision AI response"
+    },
+    {
+      "parameters": {},
+      "name": "Merge Analysis Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1450, 300],
+      "id": "tier2_ue5_merge",
+      "notes": "TIER 2: Combine analysis from both paths"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 2: Create asset metadata file with AI analysis\nconst metadata = $('Extract Asset Metadata').first().json;\nconst analysis = $input.first().json;\n\nconst assetMetadata = {\n  file: {\n    name: metadata.fileName,\n    path: metadata.filePath,\n    size: metadata.fileSize,\n    type: metadata.fileExt,\n    created: metadata.createdAt\n  },\n  quality: {\n    rating: analysis.quality,\n    tags: analysis.tags,\n    notes: analysis.notes,\n    analyzedBy: analysis.analysis_type,\n    analyzedAt: new Date().toISOString()\n  },\n  unreal: {\n    recommended_folder: analysis.quality === 'HIGH' ? 'Assets/Production' : \n                       analysis.quality === 'MEDIUM' ? 'Assets/WIP' : \n                       'Assets/Drafts',\n    import_priority: analysis.quality === 'HIGH' ? 1 : \n                     analysis.quality === 'MEDIUM' ? 2 : 3\n  }\n};\n\nconst fs = require('fs');\nconst path = require('path');\n\n// Write metadata JSON file next to asset\nconst metadataPath = metadata.filePath.replace(metadata.fileExt, '.metadata.json');\nfs.writeFileSync(metadataPath, JSON.stringify(assetMetadata, null, 2));\n\nconsole.log('Asset metadata created:', metadataPath);\n\nreturn [{\n  json: {\n    ...assetMetadata,\n    metadataPath\n  }\n}];"
+      },
+      "name": "Write Asset Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "id": "tier2_ue5_write_metadata",
+      "notes": "TIER 2: Save AI analysis as metadata for UE5 import"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.quality.rating}}",
+              "operation": "equals",
+              "value2": "LOW"
+            }
+          ]
+        }
+      },
+      "name": "Check if Low Quality",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1850, 300],
+      "id": "tier2_ue5_check_quality",
+      "notes": "TIER 2: Conditional routing based on AI assessment"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"⚠️ Low quality asset detected\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Low Quality Asset Alert*\\n\\nFile: `{{ $('Extract Asset Metadata').first().json.fileName }}`\\nQuality: {{ $json.quality.rating }}\\nTags: {{ $json.quality.tags.join(', ') }}\\nNotes: {{ $json.quality.notes }}\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"Recommended action: Review before importing to production.\"\n      }\n    }\n  ]\n}"
+      },
+      "name": "Alert: Low Quality Asset",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2050, 200],
+      "id": "tier2_ue5_slack_alert",
+      "notes": "TIER 2: Context-aware notification based on AI quality assessment"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 2: Log all asset analyses for review\nconst assetData = $input.first().json;\n\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: 'ue5_asset_tagger',\n  file: assetData.file.name,\n  quality: assetData.quality.rating,\n  tags: assetData.quality.tags,\n  alertSent: assetData.quality.rating === 'LOW'\n};\n\nconsole.log('Asset analyzed:', logEntry);\n\nconst fs = require('fs');\nconst logPath = process.env.UE5_LOG_PATH || '/tmp/ue5_assets.log';\ntry {\n  fs.appendFileSync(logPath, JSON.stringify(logEntry) + '\\n');\n} catch (err) {\n  console.error('Failed to write log:', err);\n}\n\nreturn [{ json: logEntry }];"
+      },
+      "name": "Log Asset Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 400],
+      "id": "tier2_ue5_log",
+      "notes": "TIER 2: Track AI assessments for quality monitoring"
+    }
+  ],
+  "connections": {
+    "File Watcher: New Asset": {
+      "main": [
+        [
+          {
+            "node": "Extract Asset Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Asset Metadata": {
+      "main": [
+        [
+          {
+            "node": "Branch: Image or 3D Asset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Branch: Image or 3D Asset": {
+      "main": [
+        [
+          {
+            "node": "Read Image File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze 3D Asset (Heuristic)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Image File": {
+      "main": [
+        [
+          {
+            "node": "Call ChatGPT Vision API: Analyze Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ChatGPT Vision API: Analyze Image": {
+      "main": [
+        [
+          {
+            "node": "Parse Vision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Merge Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze 3D Asset (Heuristic)": {
+      "main": [
+        [
+          {
+            "node": "Merge Analysis Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Write Asset Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Asset Metadata": {
+      "main": [
+        [
+          {
+            "node": "Check if Low Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Low Quality": {
+      "main": [
+        [
+          {
+            "node": "Alert: Low Quality Asset",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Asset Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert: Low Quality Asset": {
+      "main": [
+        [
+          {
+            "node": "Log Asset Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-11-17T00:00:00.000Z",
+      "updatedAt": "2025-11-17T00:00:00.000Z",
+      "id": "5",
+      "name": "tier_2_toy_example_ue5"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

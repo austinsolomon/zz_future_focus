@@ -1,0 +1,179 @@
+{
+  "name": "Multi-Source Capture Router - Tier 1 BR2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "cronExpression", "expression": "0 * * * *"}]
+        }
+      },
+      "name": "Schedule: Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "tier1_schedule",
+      "notes": "TIER 1: Scheduled check of inbox folder"
+    },
+    {
+      "parameters": {
+        "command": "find {{$env.OBSIDIAN_VAULT}}/00_Inbox -name '*.md' -type f -mmin -60"
+      },
+      "name": "Find New Notes in Inbox",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "id": "tier1_find_notes",
+      "notes": "TIER 1: Find notes created in last hour"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout;\nconst files = output.split('\\n').filter(f => f.trim());\n\nreturn files.map(file => ({\n  json: {\n    file_path: file,\n    file_name: file.split('/').pop(),\n    discovered_at: new Date().toISOString()\n  }\n}));"
+      },
+      "name": "Parse File List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "tier1_parse_files",
+      "notes": "TIER 1: Convert file list to structured data"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Each Note",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [850, 300],
+      "id": "tier1_split",
+      "notes": "TIER 1: Process one note at a time"
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.file_path}}",
+        "options": {}
+      },
+      "name": "Read Note",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "id": "tier1_read_note"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().binary.data.toString('utf8');\nconst fileName = $('Process Each Note').first().json.file_name;\n\n// Determine source type from filename or frontmatter\nlet sourceType = 'unknown';\nif (fileName.startsWith('voice_')) sourceType = 'voice';\nelse if (fileName.startsWith('link_')) sourceType = 'web_link';\nelse if (fileName.startsWith('text_')) sourceType = 'text';\nelse if (fileName.startsWith('screenshot_')) sourceType = 'screenshot';\n\n// Extract frontmatter if exists\nconst frontmatterMatch = content.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (frontmatterMatch) {\n  const fm = frontmatterMatch[1];\n  const sourceMatch = fm.match(/source:\\s*(.+)/);\n  if (sourceMatch) sourceType = sourceMatch[1].trim();\n}\n\nreturn [{\n  json: {\n    file_path: $('Process Each Note').first().json.file_path,\n    file_name: fileName,\n    source_type: sourceType,\n    content: content,\n    content_length: content.length,\n    word_count: content.split(/\\s+/).length\n  }\n}];"
+      },
+      "name": "Detect Source Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "id": "tier1_detect_source",
+      "notes": "TIER 1 ROUTING: Deterministic source type detection"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {"value1": "={{$json.source_type}}", "operation": "equals", "value2": "voice"}
+          ]
+        }
+      },
+      "name": "Route by Source Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "id": "tier1_route_source",
+      "notes": "TIER 1: Route based on capture source"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TIER2_CATEGORIZER_WEBHOOK}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"file_path\": \"{{ $json.file_path }}\",\n  \"source_type\": \"{{ $json.source_type }}\",\n  \"content_preview\": \"{{ $json.content.substring(0, 200) }}\"\n}"
+      },
+      "name": "Send to Tier 2 Categorizer (Voice)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1650, 200],
+      "id": "tier1_to_tier2_voice",
+      "notes": "TIER 1 ORCHESTRATION: Trigger Tier 2 for categorization"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TIER3_CONNECTOR_API}}/find-connections",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"file_path\": \"{{ $json.file_path }}\",\n  \"content\": \"{{ $json.content }}\"\n}"
+      },
+      "name": "Send to Tier 3 Connection Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1650, 300],
+      "id": "tier1_to_tier3",
+      "notes": "TIER 1: Some sources go directly to connection finder"
+    },
+    {
+      "parameters": {
+        "command": "mv {{$json.file_path}} {{$env.OBSIDIAN_VAULT}}/00_Inbox/processed/"
+      },
+      "name": "Move to Processed Folder",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1850, 300],
+      "id": "tier1_move_processed",
+      "notes": "TIER 1: Archive processed notes"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll"
+      },
+      "name": "Merge Processing Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [2050, 300],
+      "id": "tier1_merge"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Loop Back to Next Note",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2250, 300],
+      "id": "tier1_loop_back"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allResults = $input.all();\n\nconst summary = {\n  total_processed: allResults.length,\n  by_source: {\n    voice: allResults.filter(r => r.json.source_type === 'voice').length,\n    text: allResults.filter(r => r.json.source_type === 'text').length,\n    web_link: allResults.filter(r => r.json.source_type === 'web_link').length,\n    screenshot: allResults.filter(r => r.json.source_type === 'screenshot').length\n  },\n  sent_to_tier2: allResults.filter(r => r.json.sent_to_tier2).length,\n  sent_to_tier3: allResults.filter(r => r.json.sent_to_tier3).length,\n  processed_at: new Date().toISOString()\n};\n\nreturn [{ json: summary }];"
+      },
+      "name": "Generate Processing Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2450, 300],
+      "id": "tier1_summary",
+      "notes": "TIER 1: Create execution summary"
+    }
+  ],
+  "connections": {
+    "Schedule: Every Hour": {"main": [[{"node": "Find New Notes in Inbox", "type": "main", "index": 0}]]},
+    "Find New Notes in Inbox": {"main": [[{"node": "Parse File List", "type": "main", "index": 0}]]},
+    "Parse File List": {"main": [[{"node": "Process Each Note", "type": "main", "index": 0}]]},
+    "Process Each Note": {"main": [[{"node": "Read Note", "type": "main", "index": 0}]]},
+    "Read Note": {"main": [[{"node": "Detect Source Type", "type": "main", "index": 0}]]},
+    "Detect Source Type": {"main": [[{"node": "Route by Source Type", "type": "main", "index": 0}]]},
+    "Route by Source Type": {"main": [[{"node": "Send to Tier 2 Categorizer (Voice)", "type": "main", "index": 0}], [{"node": "Send to Tier 3 Connection Finder", "type": "main", "index": 0}], [{"node": "Move to Processed Folder", "type": "main", "index": 0}]]},
+    "Send to Tier 2 Categorizer (Voice)": {"main": [[{"node": "Merge Processing Paths", "type": "main", "index": 0}]]},
+    "Send to Tier 3 Connection Finder": {"main": [[{"node": "Merge Processing Paths", "type": "main", "index": 1}]]},
+    "Move to Processed Folder": {"main": [[{"node": "Merge Processing Paths", "type": "main", "index": 2}]]},
+    "Merge Processing Paths": {"main": [[{"node": "Loop Back to Next Note", "type": "main", "index": 0}]]},
+    "Loop Back to Next Note": {"main": [[{"node": "Generate Processing Summary", "type": "main", "index": 0}], [{"node": "Process Each Note", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"id": "108", "name": "tier_1_production"}, {"id": "109", "name": "br2_capture_router"}],
+  "versionId": "1.0.0"
+}
