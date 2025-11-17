@@ -1,0 +1,161 @@
+{
+  "name": "Asset Quality Assessment - Tier 2 UE5",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ue5-quality-check",
+        "httpMethod": "POST"
+      },
+      "name": "Webhook: Asset Generation Complete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "tier2_webhook",
+      "notes": "TIER 2: Triggered when Tier 3/4 generates asset"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json.body;\nreturn [{\n  json: {\n    asset_path: payload.asset_path,\n    asset_type: payload.asset_type,\n    asset_name: payload.asset_name,\n    generation_method: payload.generation_method || 'procedural',\n    screenshot_path: payload.screenshot_path,\n    poly_count_lod0: payload.poly_count_lod0 || 0,\n    lod_count: payload.lod_count || 0,\n    texture_count: payload.texture_count || 0,\n    material_count: payload.material_count || 0\n  }\n}];"
+      },
+      "name": "Extract Asset Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "tier2_extract_meta"
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.screenshot_path}}",
+        "options": {}
+      },
+      "name": "Read Asset Screenshot",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "tier2_read_screenshot",
+      "notes": "TIER 2: Load asset visual for Claude Vision analysis"
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "x-api-key", "value": "={{$credentials.anthropicApi.apiKey}}"},
+            {"name": "anthropic-version", "value": "2023-06-01"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5-20250929\",\n  \"max_tokens\": 800,\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": [\n      {\n        \"type\": \"image\",\n        \"source\": {\n          \"type\": \"base64\",\n          \"media_type\": \"image/png\",\n          \"data\": \"{{ $binary.data.toString('base64') }}\"\n        }\n      },\n      {\n        \"type\": \"text\",\n        \"text\": \"Analyze this Unreal Engine asset for quality and production readiness.\\n\\nASSET INFO:\\n- Type: {{ $('Extract Asset Metadata').first().json.asset_type }}\\n- LOD0 Poly Count: {{ $('Extract Asset Metadata').first().json.poly_count_lod0 }}\\n- LOD Levels: {{ $('Extract Asset Metadata').first().json.lod_count }}\\n- Materials: {{ $('Extract Asset Metadata').first().json.material_count }}\\n\\nEVALUATE:\\n1. Visual quality (geometry detail, UV mapping quality)\\n2. Optimization (poly count appropriate for game use?)\\n3. Material quality (PBR materials, texture resolution)\\n4. Style consistency (fits game dev aesthetic?)\\n5. Production readiness\\n\\nReturn JSON:\\n{\\n  \\\"quality_score\\\": 1-10,\\n  \\\"visual_rating\\\": \\\"excellent/good/fair/poor\\\",\\n  \\\"optimization_rating\\\": \\\"excellent/good/fair/poor\\\",\\n  \\\"issues\\\": [\\\"list issues\\\"],\\n  \\\"strengths\\\": [\\\"list strengths\\\"],\\n  \\\"ready_for_production\\\": true/false,\\n  \\\"recommended_improvements\\\": [\\\"list suggestions\\\"],\\n  \\\"reasoning\\\": \\\"explanation\\\"\\n}\"\n      }\n    ]\n  }]\n}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "name": "Claude Vision: Analyze Asset Quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300],
+      "credentials": {"anthropicApi": {"id": "6"}},
+      "id": "tier2_claude_vision",
+      "notes": "TIER 2 CHARACTERISTIC: LLM + Vision provides semantic quality assessment"
+    },
+    {
+      "parameters": {
+        "jsCode": "const claude = $input.first().json;\nconst metadata = $('Extract Asset Metadata').first().json;\n\nlet assessment;\ntry {\n  assessment = JSON.parse(claude.content[0].text);\n} catch (e) {\n  const match = claude.content[0].text.match(/\\{[\\s\\S]*\\}/);\n  assessment = match ? JSON.parse(match[0]) : {\n    quality_score: 5,\n    visual_rating: 'fair',\n    optimization_rating: 'fair',\n    issues: ['Failed to parse assessment'],\n    strengths: [],\n    ready_for_production: false,\n    recommended_improvements: []\n  };\n}\n\n// Combine with technical metrics\nconst technical_score = 0;\nif (metadata.poly_count_lod0 < 10000) technical_score += 3;\nif (metadata.lod_count >= 3) technical_score += 2;\n\nconst final_score = Math.round((assessment.quality_score + technical_score) / 2);\n\nreturn [{\n  json: {\n    asset_path: metadata.asset_path,\n    asset_name: metadata.asset_name,\n    quality_score: final_score,\n    visual_rating: assessment.visual_rating,\n    optimization_rating: assessment.optimization_rating,\n    issues: assessment.issues.join('; '),\n    strengths: assessment.strengths.join('; '),\n    ready_for_production: assessment.ready_for_production && final_score >= 7,\n    improvements: assessment.recommended_improvements.join('; '),\n    reasoning: assessment.reasoning,\n    poly_count: metadata.poly_count_lod0,\n    lod_count: metadata.lod_count,\n    assessed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Parse Quality Assessment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "id": "tier2_parse_assessment"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.ASSET_DATABASE_API}}/quality-reports",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}"
+      },
+      "name": "Store Quality Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 300],
+      "id": "tier2_store_report",
+      "notes": "TIER 2: Save assessment to asset database"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{"value1": "={{$json.ready_for_production}}", "value2": true}]
+        }
+      },
+      "name": "Check if Production Ready",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "id": "tier2_check_ready",
+      "notes": "TIER 2 ROUTING: Context-aware decision on asset approval"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.TIER1_ASSET_PUBLISHER_WEBHOOK}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"asset_path\": \"{{ $json.asset_path }}\",\n  \"asset_name\": \"{{ $json.asset_name }}\",\n  \"quality_score\": {{ $json.quality_score }},\n  \"approved\": true\n}"
+      },
+      "name": "Approve for Asset Library",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1650, 200],
+      "id": "tier2_approve",
+      "notes": "TIER 2: High quality assets auto-approved"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$env.TECH_ART_TEAM_EMAIL}}",
+        "subject": "Asset Quality Issue: {{$json.asset_name}}",
+        "emailType": "html",
+        "message": "=<h2>⚠️ Asset Quality Review Required</h2>\n<p><strong>Asset:</strong> {{$json.asset_name}}</p>\n<p><strong>Quality Score:</strong> {{$json.quality_score}}/10</p>\n<p><strong>Visual:</strong> {{$json.visual_rating}}</p>\n<p><strong>Optimization:</strong> {{$json.optimization_rating}}</p>\n\n<h3>Issues Identified:</h3>\n<p>{{$json.issues}}</p>\n\n<h3>Recommended Improvements:</h3>\n<p>{{$json.improvements}}</p>\n\n<h3>AI Reasoning:</h3>\n<p>{{$json.reasoning}}</p>\n\n<p><strong>Action Required:</strong> Review asset and implement improvements before production.</p>"
+      },
+      "name": "Alert Tech Art Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1650, 400],
+      "credentials": {"smtp": {"id": "4"}},
+      "id": "tier2_alert_team",
+      "notes": "TIER 2: Low quality assets flagged for review"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {"responseCode": 200}
+      },
+      "name": "Return Assessment Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300],
+      "id": "tier2_respond"
+    }
+  ],
+  "connections": {
+    "Webhook: Asset Generation Complete": {"main": [[{"node": "Extract Asset Metadata", "type": "main", "index": 0}]]},
+    "Extract Asset Metadata": {"main": [[{"node": "Read Asset Screenshot", "type": "main", "index": 0}]]},
+    "Read Asset Screenshot": {"main": [[{"node": "Claude Vision: Analyze Asset Quality", "type": "main", "index": 0}]]},
+    "Claude Vision: Analyze Asset Quality": {"main": [[{"node": "Parse Quality Assessment", "type": "main", "index": 0}]]},
+    "Parse Quality Assessment": {"main": [[{"node": "Store Quality Report", "type": "main", "index": 0}]]},
+    "Store Quality Report": {"main": [[{"node": "Check if Production Ready", "type": "main", "index": 0}]]},
+    "Check if Production Ready": {"main": [[{"node": "Approve for Asset Library", "type": "main", "index": 0}], [{"node": "Alert Tech Art Team", "type": "main", "index": 0}]]},
+    "Approve for Asset Library": {"main": [[{"node": "Return Assessment Result", "type": "main", "index": 0}]]},
+    "Alert Tech Art Team": {"main": [[{"node": "Return Assessment Result", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"id": "110", "name": "tier_2_production"}, {"id": "111", "name": "ue5_quality"}],
+  "versionId": "1.0.0"
+}

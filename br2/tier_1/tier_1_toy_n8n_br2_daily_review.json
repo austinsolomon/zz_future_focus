@@ -1,0 +1,214 @@
+{
+  "name": "Daily Review Note Creator - Tier 1 Toy Example",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule: Daily at 6pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "tier1_br2_schedule",
+      "notes": "TIER 1 CHARACTERISTIC: Time-based trigger - creates review note every evening"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Deterministic date formatting\nconst now = new Date();\nconst dateString = now.toISOString().split('T')[0]; // YYYY-MM-DD\nconst dayName = now.toLocaleDateString('en-US', { weekday: 'long' });\nconst formattedDate = now.toLocaleDateString('en-US', { \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric' \n});\n\nreturn [{\n  json: {\n    dateString,      // 2025-11-17\n    dayName,         // Sunday\n    formattedDate,   // November 17, 2025\n    timestamp: now.toISOString()\n  }\n}];"
+      },
+      "name": "Generate Date Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "tier1_generate_date",
+      "notes": "TIER 1 CHARACTERISTIC: Simple date formatting, no AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Template-based note content - same structure every day\nconst { dateString, dayName, formattedDate } = $input.first().json;\n\nconst noteContent = `---\ndate: ${dateString}\ntype: daily_review\nstatus: pending\ncreated: ${new Date().toISOString()}\n---\n\n# Daily Review - ${formattedDate} (${dayName})\n\n## 🎯 Wins Today\n- \n- \n- \n\n## 📚 Key Learnings\n- \n- \n- \n\n## 💡 Ideas Captured\n- \n- \n- \n\n## 🔄 Reflections\n- What went well:\n- What could improve:\n- Energy level (1-10):\n\n## 📋 Tomorrow's Focus\n- [ ] \n- [ ] \n- [ ] \n\n## 🔗 Related\n- [[${dateString} Daily Note]]\n- [[Weekly Review]]\n\n---\n*Created automatically by daily review workflow*\n`;\n\nreturn [{\n  json: {\n    content: noteContent,\n    filename: `${dateString}_review.md`,\n    dateString\n  }\n}];"
+      },
+      "name": "Create Note Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "tier1_create_template",
+      "notes": "TIER 1 CHARACTERISTIC: Fixed template - same sections every day, no personalization"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "filePath": "={{$env.OBSIDIAN_VAULT_PATH}}/01_Daily_Reviews/{{$json.filename}}",
+        "data": "={{$json.content}}",
+        "options": {
+          "encoding": "utf8"
+        }
+      },
+      "name": "Write Note to Obsidian",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "id": "tier1_write_file",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic file write to fixed location"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.OBSIDIAN_LOCAL_API}}/vault/append",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{$json.filename}}"
+            },
+            {
+              "name": "data",
+              "value": "={{$json.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Alternative: Obsidian Local REST API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 450],
+      "id": "tier1_api_write",
+      "notes": "TIER 1 CHARACTERISTIC: Alternative method using Obsidian Local REST API plugin"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.FROM_EMAIL}}",
+        "toEmail": "={{$env.USER_EMAIL}}",
+        "subject": "⏰ Daily Review Ready - {{$json.dateString}}",
+        "emailType": "text",
+        "message": "Your daily review note has been created!\n\n📝 File: {{$json.filename}}\n📂 Location: 01_Daily_Reviews/\n\nTake 10 minutes to reflect on your day:\n- What wins did you achieve?\n- What did you learn?\n- What's your focus for tomorrow?\n\nOpen Obsidian to complete your review.\n\n---\nAutomated reminder from your Second Brain system",
+        "options": {}
+      },
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP account"
+        }
+      },
+      "id": "tier1_send_reminder",
+      "notes": "TIER 1 CHARACTERISTIC: Template-based reminder email"
+    },
+    {
+      "parameters": {
+        "title": "📝 Daily Review Ready",
+        "message": "Your review note for {{$json.dateString}} has been created. Open Obsidian to reflect on your day.",
+        "options": {
+          "sound": "default"
+        }
+      },
+      "name": "Alternative: Push Notification",
+      "type": "n8n-nodes-base.pushover",
+      "typeVersion": 1,
+      "position": [1050, 450],
+      "credentials": {
+        "pushoverApi": {
+          "id": "2",
+          "name": "Pushover API"
+        }
+      },
+      "id": "tier1_push_notification",
+      "notes": "TIER 1 CHARACTERISTIC: Alternative notification via Pushover/iOS"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TIER 1: Simple logging\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  workflow: 'daily_review_creator',\n  status: 'completed',\n  noteCreated: $json.filename,\n  location: '01_Daily_Reviews/'\n};\n\nconsole.log('Daily review note created:', logEntry);\n\n// Write to log file\nconst fs = require('fs');\nconst logPath = process.env.BR2_LOG_PATH || '/var/log/br2_automation.log';\nfs.appendFileSync(logPath, JSON.stringify(logEntry) + '\\n');\n\nreturn [{ json: logEntry }];"
+      },
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 375],
+      "id": "tier1_log",
+      "notes": "TIER 1 CHARACTERISTIC: Deterministic logging for observability"
+    }
+  ],
+  "connections": {
+    "Schedule: Daily at 6pm": {
+      "main": [
+        [
+          {
+            "node": "Generate Date Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Date Info": {
+      "main": [
+        [
+          {
+            "node": "Create Note Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Note Template": {
+      "main": [
+        [
+          {
+            "node": "Write Note to Obsidian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Note to Obsidian": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder Email": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-11-17T00:00:00.000Z",
+      "updatedAt": "2025-11-17T00:00:00.000Z",
+      "id": "3",
+      "name": "tier_1_toy_example"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

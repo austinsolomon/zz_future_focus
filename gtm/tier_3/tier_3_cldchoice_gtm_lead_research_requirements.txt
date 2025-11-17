@@ -1,0 +1,29 @@
+# Tier 3 - GTM Lead Research Agent - Python Dependencies
+
+# Core LangChain
+langchain==0.1.0
+langchain-openai==0.0.5
+langchain-core==0.1.10
+
+# FastAPI for production deployment
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.0
+
+# Environment and utilities
+python-dotenv==1.0.0
+
+# Optional: Production integrations (uncomment as needed)
+# requests==2.31.0  # For API integrations
+# aiohttp==3.9.1    # For async API calls
+# redis==5.0.1      # For caching research results
+# sqlalchemy==2.0.25  # For storing research history
+
+# Production APIs (install if using real integrations):
+# serper-api-client  # Google search via Serper
+# proxycurl  # LinkedIn data
+# clearbit  # Company enrichment
+
+# Monitoring and logging
+# sentry-sdk==1.40.0  # Error tracking
+# prometheus-client==0.19.0  # Metrics
