@@ -1,17 +1,32 @@
 #!/usr/bin/env python3
 """
-GTM - Tier 3 - ICP-Based Account Hunter Agent (LangChain)
+TAM Accounts - ICP-Based Account Finder Agent
+
+USE CASE: Total Addressable Market (TAM) Account Discovery
+TIER: 3 (Single Agent with Tools)
+
+Business Value:
+- Automatically discover accounts matching your Ideal Customer Profile
+- Score and prioritize accounts by fit before sales outreach
+- Scale TAM research from manual (5-10 accounts/day) to automated (100s/day)
+
+Company Size Application:
+- SMB: Fast discovery with basic scoring (5-10 criteria)
+- Mid-Market: Detailed scoring with 10-15 criteria + tech stack analysis
+- Enterprise: Deep profiling with competitive intel and stakeholder mapping
+
+What It Does:
+Given an Ideal Customer Profile (ICP), this autonomous agent:
+1. Searches for companies matching firmographic criteria (size, industry, location)
+2. Enriches each account with technographic data (tech stack, tools)
+3. Scores accounts on multi-dimensional fit (0-100 scale)
+4. Outputs prioritized list for sales team targeting
 
 TIER 3 CHARACTERISTICS:
 - Single agent with company search/enrichment tools
 - Autonomous decision-making for ICP fit scoring
 - Multi-criteria evaluation (firmographics + technographics)
-- Structured output for downstream workflows
-
-What It Does:
-Given an Ideal Customer Profile (ICP), autonomously searches for companies
-that match criteria, enriches with firmographic/technographic data, and
-scores each prospect for sales outreach prioritization.
+- Structured output for CRM/outbound workflows
 """
 
 import os
