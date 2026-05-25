@@ -21,7 +21,59 @@ const els = {
   shuffleBtn: document.getElementById('shuffleBtn'),
   bottomRevealBtn: document.getElementById('bottomRevealBtn'),
   categoryFilter: document.getElementById('categoryFilter'),
+  instructionsStrip: document.getElementById('instructionsStrip'),
 };
+
+const INSTRUCTIONS = {
+  'Sentence Use': 'Translate + use in a Greek sentence. Ex: I wait → perimeno + sentence.',
+  'Full Paradigm': 'Conjugate all 6 persons: I / you / s-he / we / you-pl / they.',
+  'Tense Flip': 'Translate across present / past simple / past continuous.',
+  'Identify the Form': 'State person, number, tense, meaning.',
+  'Identify the Case': 'Name the grammatical case and why.',
+  'Recognition + Gender': 'Give Greek word + article (ο / η / το).',
+  'Full Declension': 'Decline nom / gen / acc, sg + pl.',
+  'Singular → Plural': 'Give the plural form (with article).',
+  'Phrase Translation': 'Translate the phrase.',
+  'Greeting + Reply': 'Give the typical back-and-forth.',
+  'Situational': 'Say what you would say in Greek.',
+  'Word + Example': 'Translate + use in a sentence.',
+  'Negation Example': 'Use den + (pronoun) + verb.',
+  'Future Marker': 'Apply θα + verb (continuous or simple).',
+  'Past Simple': 'Give the aorist (past simple) form.',
+  'Past Simple Example': 'Give the aorist form; compare to present.',
+  'Recognize': 'Translate the verb / word.',
+  'Modal / Infinitive Markers': 'Translate; remember Greek has no infinitive.',
+  'Demonstratives': 'Give all 3 genders.',
+  'Question Words': 'Translate.',
+  'Yes / No / OK': 'Translate.',
+  'Time (relative)': 'Translate.',
+  'Time (day frame)': 'Translate.',
+  'Location & Direction': 'Translate.',
+  'Boy / Girl': 'Translate + give gender (both neuter).',
+  'Travel Phrases': 'Translate.',
+  'Days of the Week': 'Translate (all 7).',
+  'Numbers 1–10': 'Translate (all 10).',
+  'Greek-origin Loanwords': 'Translate; note the English cognate.',
+};
+
+function getInstruction(card) {
+  const concept = card.concept || '';
+  // Try direct match on the part after "—"
+  const m = concept.match(/—\s*(.+?)(?:\s*\(|$)/);
+  const key = m ? m[1].trim() : '';
+  if (INSTRUCTIONS[key]) return INSTRUCTIONS[key];
+  // Fuzzy: try matching any known instruction key as substring
+  for (const k of Object.keys(INSTRUCTIONS)) {
+    if (concept.includes(k)) return INSTRUCTIONS[k];
+  }
+  if (card.category === 'alphabet') return 'Name letter + sound, or write Greek letter from name.';
+  return 'Read prompt → tap Reveal → compare.';
+}
+
+function questionType(card) {
+  const m = (card.concept || '').match(/—\s*(.+?)(?:\s*\(|$)/);
+  return m ? m[1].trim() : '';
+}
 
 function lines(v) { return Array.isArray(v) ? v.join('\n') : (v || ''); }
 
@@ -48,6 +100,7 @@ function render() {
   }
 
   els.concept.textContent = card.concept || '';
+  els.instructionsStrip.innerHTML = '<strong>' + (questionType(card) || 'Tip') + ':</strong> ' + getInstruction(card);
 
   const promptKey = state.direction === 'en-to-gr' ? 'en' : 'gr';
   els.prompt.textContent = lines(card[promptKey]);
@@ -184,12 +237,24 @@ document.addEventListener('click', e => {
   if (text) copyText(text, btn);
 });
 
+function sortByCategoryAndType(cards) {
+  const catOrder = state.categories.reduce((acc, c, i) => { acc[c.id] = i; return acc; }, {});
+  return cards.slice().sort((a, b) => {
+    const ca = catOrder[a.category] ?? 999;
+    const cb = catOrder[b.category] ?? 999;
+    if (ca !== cb) return ca - cb;
+    const ta = questionType(a), tb = questionType(b);
+    if (ta !== tb) return ta.localeCompare(tb);
+    return (a.id || '').localeCompare(b.id || '');
+  });
+}
+
 async function load() {
   const res = await fetch('cards.json', { cache: 'no-cache' });
   const data = await res.json();
   els.deckName.textContent = data.deck || 'Flashcards';
-  state.all = data.cards || [];
   state.categories = data.categories || [];
+  state.all = sortByCategoryAndType(data.cards || []);
   state.filtered = state.all.slice();
   populateCategoryFilter();
   render();
