@@ -102,7 +102,14 @@ body {
 }
 
 .prompt { color: var(--text); cursor: pointer; }
-.answer { color: var(--answer); }
+.answer-row { display: flex; flex-direction: column; gap: 12px; }
+.ans-block { display: flex; flex-direction: column; gap: 4px; }
+.ans-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+.ans-row { align-items: flex-start; gap: 10px; }
+.ans-text { flex: 1; font-size: clamp(16px, 4vw, 20px); line-height: 1.45; white-space: pre-line; }
+.ans-en { color: var(--text); }
+.ans-gr { color: var(--answer); font-weight: 500; }
+.ans-phon { color: var(--accent); font-style: italic; }
 .hidden { display: none; }
 
 .copy-btn {
