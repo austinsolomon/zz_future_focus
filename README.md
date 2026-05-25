@@ -1,4 +1,4 @@
-# Generalized Automation Architecture: "The Agentic Workforce"
+# Generalized Automation Architecture
 
 ## Architecture Overview
 
