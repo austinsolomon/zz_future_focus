@@ -232,11 +232,11 @@ function render() {
 
   const promptKey = state.direction === 'en-to-gr' ? 'en' : 'gr';
   const answerKey = state.direction === 'en-to-gr' ? 'gr' : 'en';
-  els.prompt.textContent = lines(card[promptKey]);
+  els.prompt.textContent = (card[promptKey] || [])[0] || '';
 
-  // Build full-answer blocks (revealed after answering)
+  // Build full-answer blocks (revealed after answering): show all 3 formats with full arrays for extra context
   els.answerBlocks.innerHTML = '';
-  ['en', 'gr', 'phon'].filter(k => k !== promptKey && card[k]).forEach(k => {
+  ['en', 'gr', 'phon'].filter(k => card[k]).forEach(k => {
     const block = document.createElement('div');
     block.className = 'ans-block';
     const label = document.createElement('div');
