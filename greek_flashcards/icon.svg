@@ -1,4 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0b1020"/>
-  <text x="50%" y="56%" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-weight="700" font-size="280" fill="#7cc4ff">Ε</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6ec7"/>
+      <stop offset="0.5" stop-color="#b14aed"/>
+      <stop offset="1" stop-color="#00c6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M256 92 l18 46 48 18 -48 18 -18 46 -18 -46 -48 -18 48 -18 z" fill="#ffe600" opacity="0.9"/>
+  <text x="50%" y="62%" text-anchor="middle" font-family="Comic Sans MS, system-ui, sans-serif" font-weight="700" font-size="280" fill="#ffffff">Ε</text>
 </svg>

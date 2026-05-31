@@ -3,14 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1020" />
-  <title>Greek Flashcards</title>
+  <meta name="theme-color" content="#ff2d95" />
+  <title>✩ Greek Flashcards ✩</title>
   <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="deck-name" id="deckName">greek_flashcards</div>
+    <div class="deck-name" id="deckName">✩ greek_flashcards ✩</div>
     <button class="dir-toggle" id="dirToggle" type="button" aria-label="Toggle direction">EN → GR</button>
     <div class="progress"><span id="cardIndex">0</span> / <span id="cardTotal">0</span></div>
   </header>
@@ -57,6 +60,71 @@
       <div class="tags" id="tags"></div>
     </section>
   </main>
+
+  <footer class="mascot">
+    <svg class="mascot-svg" viewBox="0 0 440 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A bear and a panda holding hands">
+      <!-- sparkles -->
+      <g class="twinkle">
+        <path d="M210 14 L212.5 19.5 L218 22 L212.5 24.5 L210 30 L207.5 24.5 L202 22 L207.5 19.5 Z" fill="#ffffff"/>
+        <path d="M62 27 L64.2 31.8 L69 34 L64.2 36.2 L62 41 L59.8 36.2 L55 34 L59.8 31.8 Z" fill="#ffe600"/>
+        <path d="M392 31 L395 37 L401 40 L395 43 L392 49 L389 43 L383 40 L389 37 Z" fill="#00e1ff"/>
+        <path d="M404 106 L406 110 L410 112 L406 114 L404 118 L402 114 L398 112 L402 110 Z" fill="#ff2d95"/>
+        <path d="M40 102 L42 106 L46 108 L42 110 L40 114 L38 110 L34 108 L38 106 Z" fill="#ffffff"/>
+      </g>
+
+      <!-- ground shadows -->
+      <ellipse cx="140" cy="143" rx="62" ry="8" fill="#000000" opacity="0.16"/>
+      <ellipse cx="300" cy="143" rx="62" ry="8" fill="#000000" opacity="0.16"/>
+
+      <!-- ===== BEAR (left) ===== -->
+      <ellipse cx="123" cy="138" rx="12" ry="9" fill="#E2A975"/>
+      <ellipse cx="157" cy="138" rx="12" ry="9" fill="#E2A975"/>
+      <rect x="100" y="88" width="80" height="54" rx="26" fill="#E2A975"/>
+      <line x1="106" y1="104" x2="82" y2="126" stroke="#E2A975" stroke-width="17" stroke-linecap="round"/>
+      <line x1="174" y1="104" x2="206" y2="124" stroke="#E2A975" stroke-width="17" stroke-linecap="round"/>
+      <circle cx="210" cy="125" r="10" fill="#E2A975"/>
+      <circle cx="108" cy="42" r="21" fill="#D49A60"/>
+      <circle cx="172" cy="42" r="21" fill="#D49A60"/>
+      <circle cx="108" cy="42" r="11" fill="#9C6B3F"/>
+      <circle cx="172" cy="42" r="11" fill="#9C6B3F"/>
+      <circle cx="140" cy="64" r="47" fill="#E2A975"/>
+      <circle cx="109" cy="80" r="8.5" fill="#F4C84B"/>
+      <circle cx="171" cy="80" r="8.5" fill="#F4C84B"/>
+      <ellipse cx="122" cy="66" rx="6.5" ry="8.5" fill="#4A3527"/>
+      <ellipse cx="158" cy="66" rx="6.5" ry="8.5" fill="#4A3527"/>
+      <circle cx="124" cy="63" r="2" fill="#ffffff"/>
+      <circle cx="160" cy="63" r="2" fill="#ffffff"/>
+      <ellipse cx="140" cy="74" rx="4.5" ry="3" fill="#6E4B30"/>
+      <path d="M129 77 q11 12 22 0" fill="none" stroke="#6E4B30" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M136 82 a5 5 0 0 0 8 0 z" fill="#EE7A93"/>
+
+      <!-- held-hands heart -->
+      <path d="M220 120 C214 114 213 110 217 109 C219 108.5 220 110 220 111.5 C220 110 221 108.5 223 109 C227 110 226 114 220 120 Z" fill="#ff2d95"/>
+
+      <!-- ===== PANDA (right) ===== -->
+      <ellipse cx="283" cy="138" rx="12" ry="9" fill="#4A3526"/>
+      <ellipse cx="317" cy="138" rx="12" ry="9" fill="#4A3526"/>
+      <rect x="260" y="88" width="80" height="54" rx="26" fill="#FBF8F2"/>
+      <path d="M286 92 L314 92 L300 112 Z" fill="#5C4433"/>
+      <circle cx="300" cy="95" r="5" fill="#4A3526"/>
+      <line x1="266" y1="104" x2="234" y2="124" stroke="#FBF8F2" stroke-width="17" stroke-linecap="round"/>
+      <line x1="334" y1="104" x2="358" y2="126" stroke="#FBF8F2" stroke-width="17" stroke-linecap="round"/>
+      <circle cx="230" cy="125" r="10" fill="#FBF8F2"/>
+      <circle cx="268" cy="42" r="21" fill="#4A3526"/>
+      <circle cx="332" cy="42" r="21" fill="#4A3526"/>
+      <circle cx="300" cy="64" r="47" fill="#FBF8F2"/>
+      <circle cx="269" cy="80" r="8.5" fill="#F4A6B6"/>
+      <circle cx="331" cy="80" r="8.5" fill="#F4A6B6"/>
+      <ellipse cx="282" cy="66" rx="6.5" ry="8.5" fill="#4A3527"/>
+      <ellipse cx="318" cy="66" rx="6.5" ry="8.5" fill="#4A3527"/>
+      <circle cx="284" cy="63" r="2" fill="#ffffff"/>
+      <circle cx="320" cy="63" r="2" fill="#ffffff"/>
+      <ellipse cx="300" cy="74" rx="4.5" ry="3" fill="#6E4B30"/>
+      <path d="M289 77 q11 12 22 0" fill="none" stroke="#6E4B30" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M296 82 a5 5 0 0 0 8 0 z" fill="#EE7A93"/>
+    </svg>
+    <div class="marquee"><span>✩ welcome 2 greek flashcards ✩ kalimera bestie ✩ keep ur streak alive ✩ σ' αγαπώ ✩ tap a choice 2 score ✩</span></div>
+  </footer>
 
   <nav class="controls">
     <div class="thumb-zone">
