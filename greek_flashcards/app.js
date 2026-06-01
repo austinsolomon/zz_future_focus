@@ -1,7 +1,13 @@
 const state = {
-  all: [], filtered: [], index: 0, revealed: false,
-  direction: 'en-to-gr', category: '', categories: [],
+  all: [],            // all cards (sorted by category+difficulty)
+  inFilter: [],       // all cards matching the current category filter (sorted by difficulty)
+  filtered: [],       // active pool: inFilter minus mastered, sorted by difficulty
+  index: 0,
+  direction: 'en-to-gr',
+  category: '',
+  categories: [],
   stats: { streak: 0, best: 0, correct: 0, total: 0 },
+  mastered: new Set(),
   currentAnswered: false,
 };
 
@@ -30,72 +36,53 @@ const els = {
   statBest: document.getElementById('statBest'),
   statScore: document.getElementById('statScore'),
   resetStats: document.getElementById('resetStats'),
+  completeOverlay: document.getElementById('completeOverlay'),
+  completeTitle: document.getElementById('completeTitle'),
+  completeSubtitle: document.getElementById('completeSubtitle'),
+  completeRestart: document.getElementById('completeRestart'),
+  completeClose: document.getElementById('completeClose'),
+  confetti: document.getElementById('confetti'),
 };
 
 const INSTRUCTIONS = {
-  'Sentence Use': 'Pick the matching Greek form.',
-  'Full Paradigm': 'Pick the correct 1st person form (full paradigm follows).',
-  'Tense Flip': 'Pick the matching present form.',
-  'Identify the Form': 'Pick the correct analysis.',
-  'Identify the Case': 'Pick the correct case.',
-  'Recognition + Gender': 'Pick the matching Greek noun.',
-  'Full Declension': 'Pick the correct singular form.',
-  'Singular → Plural': 'Pick the matching transformation.',
-  'Phrase Translation': 'Pick the correct Greek phrase.',
-  'Greeting + Reply': 'Pick the typical opener.',
-  'Situational': 'Pick what you would say.',
-  'Word + Example': 'Pick the matching Greek word.',
-  'Negation Example': 'Pick the correct negation.',
-  'Future Marker': 'Pick the correct future form.',
-  'Past Simple': 'Pick the correct aorist form.',
-  'Past Simple Example': 'Pick the correct past form.',
-  'Recognize': 'Pick the correct translation.',
-  'Modal / Infinitive Markers': 'Pick the correct marker.',
-  'Demonstratives': 'Pick the correct demonstrative.',
-  'Question Words': 'Pick the correct question word.',
-  'Yes / No / OK': 'Pick the correct word.',
-  'Time (relative)': 'Pick the correct time word.',
-  'Time (day frame)': 'Pick the correct day word.',
-  'Location & Direction': 'Pick the correct direction word.',
-  'Boy / Girl': 'Pick the matching Greek noun.',
-  'Travel Phrases': 'Pick the correct travel phrase.',
-  'Days of the Week': 'Pick the correct day name.',
-  'Numbers 1–10': 'Pick the correct number.',
-  'Greek-origin Loanwords': 'Pick the matching Greek word.',
+  Greeting: 'Pick the right greeting.',
+  Politeness: 'Pick the polite phrase.',
+  'Small talk': 'Pick what you would say.',
+  Café: 'Pick the right café phrase.',
+  Shopping: 'Pick the right shopping phrase.',
+  Directions: 'Pick the correct direction phrase.',
+  Travel: 'Pick the right travel phrase.',
+  Time: 'Pick the matching time word.',
+  Emergency: 'Pick the right emergency phrase.',
+  Toast: 'Pick the correct toast.',
+  Communication: 'Pick the right phrase.',
+  Alphabet: 'Pick the matching Greek letter / name.',
+  Number: 'Pick the matching number.',
+  Connector: 'Pick the right connector.',
+  Function: 'Pick the right word.',
+  Noun: 'Pick the matching Greek noun / form.',
+  Verb: 'Pick the matching verb form.',
 };
 
 function getInstruction(card) {
   const concept = card.concept || '';
-  const m = concept.match(/—\s*(.+?)(?:\s*\(|$)/);
-  const key = m ? m[1].trim() : '';
-  if (INSTRUCTIONS[key]) return INSTRUCTIONS[key];
-  for (const k of Object.keys(INSTRUCTIONS)) {
-    if (concept.includes(k)) return INSTRUCTIONS[k];
-  }
-  if (card.category === 'alphabet') return 'Pick the matching letter or name.';
-  return 'Pick the correct answer.';
+  const m = concept.match(/^([^—]+)—/);
+  const head = m ? m[1].trim() : '';
+  return INSTRUCTIONS[head] || 'Pick the correct answer.';
 }
 
-function questionType(card) {
-  const m = (card.concept || '').match(/—\s*(.+?)(?:\s*\(|$)/);
-  return m ? m[1].trim() : '';
+function shortType(card) {
+  const m = (card.concept || '').match(/^([^—]+)—\s*(.+?)(?:\s*\(|$)/);
+  return m ? `${m[1].trim()} — ${m[2].trim()}` : (card.concept || 'Tip');
 }
 
 function lines(v) { return Array.isArray(v) ? v.join('\n') : (v || ''); }
-
-function coreAnswer(card, key) {
-  const v = card[key];
-  return Array.isArray(v) ? (v[0] || '') : (v || '');
-}
-
-function categoryLabel(id) {
-  const c = state.categories.find(c => c.id === id);
-  return c ? c.label : (id || '').replace(/_/g, ' ');
-}
+function coreAnswer(card, key) { const v = card[key]; return Array.isArray(v) ? (v[0] || '') : (v || ''); }
+function categoryLabel(id) { const c = state.categories.find(c => c.id === id); return c ? c.label : (id || '').replace(/_/g, ' '); }
 
 const LABELS = { en: 'English', gr: 'Greek', phon: 'Phonetic' };
 
-// ----- stats -----
+// ---------- persistence ----------
 function loadStats() {
   return {
     streak: parseInt(localStorage.getItem('gf.streak') || '0', 10),
@@ -104,19 +91,24 @@ function loadStats() {
     total: parseInt(localStorage.getItem('gf.total') || '0', 10),
   };
 }
-
 function saveStats() {
   localStorage.setItem('gf.streak', state.stats.streak);
   localStorage.setItem('gf.best', state.stats.best);
   localStorage.setItem('gf.correct', state.stats.correct);
   localStorage.setItem('gf.total', state.stats.total);
 }
-
 function renderStats() {
   els.statStreak.textContent = state.stats.streak;
   els.statBest.textContent = state.stats.best;
   els.statScore.textContent = state.stats.correct + ' / ' + state.stats.total;
   els.statStreak.classList.toggle('hot', state.stats.streak >= 5);
+}
+function loadMastered() {
+  try { return new Set(JSON.parse(localStorage.getItem('gf.mastered') || '[]')); }
+  catch (e) { return new Set(); }
+}
+function saveMastered() {
+  localStorage.setItem('gf.mastered', JSON.stringify([...state.mastered]));
 }
 
 function recordAnswer(isCorrect) {
@@ -133,13 +125,42 @@ function recordAnswer(isCorrect) {
 }
 
 function resetStats() {
-  if (!confirm('Reset streak, best, and score?')) return;
+  if (!confirm('Reset streak, best, score AND all mastery progress?')) return;
   state.stats = { streak: 0, best: 0, correct: 0, total: 0 };
+  state.mastered = new Set();
   saveStats();
+  saveMastered();
   renderStats();
+  applyCategoryFilter(state.category);
 }
 
-// ----- multiple choice -----
+// ---------- mastery ----------
+function markMastered(cardId) {
+  state.mastered.add(cardId);
+  saveMastered();
+}
+function demoteOneMastered(categoryId) {
+  // pick a random mastered card from the same category to un-master
+  const cands = state.inFilter.filter(c => state.mastered.has(c.id) && (!categoryId || c.category === categoryId));
+  if (!cands.length) return null;
+  const pick = cands[Math.floor(Math.random() * cands.length)];
+  state.mastered.delete(pick.id);
+  saveMastered();
+  return pick;
+}
+
+function rebuildActivePool(preserveIndex) {
+  const before = state.filtered[state.index] && state.filtered[state.index].id;
+  state.filtered = state.inFilter.filter(c => !state.mastered.has(c.id));
+  if (preserveIndex && before) {
+    const i = state.filtered.findIndex(c => c.id === before);
+    state.index = i >= 0 ? i : 0;
+  } else if (state.index >= state.filtered.length) {
+    state.index = 0;
+  }
+}
+
+// ---------- multiple choice ----------
 function buildOptions(card, answerKey, n = 4) {
   const correct = coreAnswer(card, answerKey);
   if (!correct) return { options: [], correct: '' };
@@ -163,21 +184,18 @@ function renderMC(card, answerKey) {
   els.feedback.classList.add('hidden');
   els.feedback.textContent = '';
   state.currentAnswered = false;
-
   const { options, correct } = buildOptions(card, answerKey);
-  if (!options.length) return;
-
   options.forEach(text => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mc-option';
     btn.textContent = text;
-    btn.addEventListener('click', () => onOptionClick(btn, text, correct));
+    btn.addEventListener('click', () => onOptionClick(btn, text, correct, card));
     els.mcOptions.appendChild(btn);
   });
 }
 
-function onOptionClick(btn, picked, correct) {
+function onOptionClick(btn, picked, correct, card) {
   if (state.currentAnswered) return;
   state.currentAnswered = true;
   const isCorrect = picked === correct;
@@ -189,31 +207,90 @@ function onOptionClick(btn, picked, correct) {
     if (b === btn && !isCorrect) b.classList.add('wrong');
   });
 
-  els.feedback.textContent = isCorrect ? 'Correct.' : 'Wrong — correct answer highlighted.';
+  let msg = isCorrect ? 'Correct.' : 'Wrong — correct answer highlighted.';
+  if (isCorrect) {
+    markMastered(card.id);
+    msg += '  ✩ Card mastered.';
+  } else {
+    const demoted = demoteOneMastered(card.category);
+    if (demoted) msg += '  (Demoted "' + (demoted.concept || demoted.id) + '" back to the pool.)';
+  }
+
+  els.feedback.textContent = msg;
   els.feedback.classList.remove('hidden');
   els.feedback.classList.toggle('ok', isCorrect);
   els.feedback.classList.toggle('bad', !isCorrect);
 
-  showAnswer();
-}
-
-function showAnswer() {
   els.answerRow.classList.remove('hidden');
+  rebuildActivePool(true);
+  checkCompletion();
 }
 
 function revealWithoutScoring() {
   if (state.currentAnswered) return;
   state.currentAnswered = true;
   [...els.mcOptions.children].forEach(b => b.classList.add('disabled'));
-  showAnswer();
+  els.answerRow.classList.remove('hidden');
 }
 
-// ----- render card -----
+// ---------- completion ----------
+function spawnConfetti() {
+  els.confetti.innerHTML = '';
+  const colors = ['#ff2d95','#ffe600','#00e1ff','#b6ff3a','#c77dff','#ff6ec7'];
+  const n = 80;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetto';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.background = colors[i % colors.length];
+    p.style.animationDelay = (Math.random() * 1.2) + 's';
+    p.style.animationDuration = (2.6 + Math.random() * 2) + 's';
+    p.style.transform = `rotate(${Math.random()*360}deg)`;
+    els.confetti.appendChild(p);
+  }
+}
+
+function showCompletion(allComplete) {
+  const catLabel = state.category ? categoryLabel(state.category) : 'all categories';
+  const count = state.inFilter.length;
+  els.completeTitle.textContent = allComplete && !state.category ? 'DECK COMPLETE!' : 'CATEGORY COMPLETE!';
+  els.completeSubtitle.textContent = `You mastered all ${count} ${state.category ? catLabel : 'card'}${count===1?'':'s'}! ✩`;
+  els.completeRestart.textContent = state.category ? `Restart ${catLabel}` : 'Restart the whole deck';
+  els.completeOverlay.classList.remove('hidden');
+  spawnConfetti();
+}
+
+function hideCompletion() { els.completeOverlay.classList.add('hidden'); }
+
+function restartCurrentCategory() {
+  // un-master all cards in current filter
+  state.inFilter.forEach(c => state.mastered.delete(c.id));
+  saveMastered();
+  hideCompletion();
+  applyCategoryFilter(state.category);
+}
+
+function checkCompletion() {
+  if (state.inFilter.length > 0 && state.filtered.length === 0) {
+    const allMastered = state.all.every(c => state.mastered.has(c.id));
+    setTimeout(() => showCompletion(allMastered), 350);
+  }
+}
+
+// ---------- render ----------
 function render() {
   const card = state.filtered[state.index];
+  const masteredCount = state.inFilter.filter(c => state.mastered.has(c.id)).length;
+
   if (!card) {
-    els.concept.textContent = 'No cards match this filter.';
-    els.prompt.textContent = '';
+    if (state.inFilter.length > 0 && masteredCount === state.inFilter.length) {
+      // Already complete — keep showing overlay
+      els.concept.textContent = 'Category complete.';
+      els.prompt.textContent = 'Tap "Restart" or pick another category.';
+    } else {
+      els.concept.textContent = 'No cards match this filter.';
+      els.prompt.textContent = '';
+    }
     els.mcOptions.innerHTML = '';
     els.answerBlocks.innerHTML = '';
     els.answerRow.classList.add('hidden');
@@ -222,19 +299,19 @@ function render() {
     els.tags.innerHTML = '';
     els.cardIndex.textContent = '0';
     els.cardTotal.textContent = '0';
-    els.instructionsStrip.innerHTML = '<strong>Tip:</strong> Adjust filter.';
+    els.instructionsStrip.innerHTML = '<strong>Tip:</strong> Pick a category.';
     return;
   }
 
   els.concept.textContent = card.concept || '';
   els.instructionsStrip.innerHTML =
-    '<strong>' + (questionType(card) || 'Tip') + ':</strong> ' + getInstruction(card);
+    `<strong>${shortType(card)}</strong> · L${card.difficulty || 1} — ${getInstruction(card)}`;
 
   const promptKey = state.direction === 'en-to-gr' ? 'en' : 'gr';
   const answerKey = state.direction === 'en-to-gr' ? 'gr' : 'en';
   els.prompt.textContent = (card[promptKey] || [])[0] || '';
 
-  // Build full-answer blocks (revealed after answering): show all 3 formats with full arrays for extra context
+  // build full-answer blocks (shown after MC answer)
   els.answerBlocks.innerHTML = '';
   ['en', 'gr', 'phon'].filter(k => card[k]).forEach(k => {
     const block = document.createElement('div');
@@ -258,7 +335,6 @@ function render() {
     block.appendChild(row);
     els.answerBlocks.appendChild(block);
   });
-  els.answerRow.classList.add('hidden');
 
   renderMC(card, answerKey);
 
@@ -274,16 +350,14 @@ function render() {
   if (card.category) {
     const s = document.createElement('span');
     s.className = 'tag tag-category';
-    s.textContent = categoryLabel(card.category);
+    s.textContent = categoryLabel(card.category) + ' · L' + (card.difficulty || 1);
     els.tags.appendChild(s);
   }
-  (card.subcategories || []).forEach(sub => {
-    const s = document.createElement('span');
-    s.className = 'tag tag-sub';
-    s.textContent = sub;
-    els.tags.appendChild(s);
-  });
-  (card.tags || []).forEach(t => {
+  const masteryTag = document.createElement('span');
+  masteryTag.className = 'tag tag-mastery';
+  masteryTag.textContent = `${masteredCount}/${state.inFilter.length} mastered`;
+  els.tags.appendChild(masteryTag);
+  (card.tags || []).slice(0,3).forEach(t => {
     const s = document.createElement('span');
     s.className = 'tag';
     s.textContent = t;
@@ -298,7 +372,6 @@ function render() {
 
 function next() { if (state.filtered.length) { state.index = (state.index + 1) % state.filtered.length; render(); } }
 function prev() { if (state.filtered.length) { state.index = (state.index - 1 + state.filtered.length) % state.filtered.length; render(); } }
-
 function shuffle() {
   for (let i = state.filtered.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -306,19 +379,29 @@ function shuffle() {
   }
   state.index = 0; render();
 }
-
 function toggleDirection() {
   state.direction = state.direction === 'en-to-gr' ? 'gr-to-en' : 'en-to-gr';
   els.dirToggle.textContent = state.direction === 'en-to-gr' ? 'EN → GR' : 'GR → EN';
   render();
 }
 
+// ---------- ordering & filter ----------
+function sortByDifficulty(cards) {
+  return cards.slice().sort((a, b) => {
+    const d = (a.difficulty || 99) - (b.difficulty || 99);
+    if (d !== 0) return d;
+    return (a.id || '').localeCompare(b.id || '');
+  });
+}
 function applyCategoryFilter(cat) {
   state.category = cat;
-  state.filtered = cat ? state.all.filter(c => c.category === cat) : state.all.slice();
-  state.index = 0; render();
+  state.inFilter = sortByDifficulty(cat ? state.all.filter(c => c.category === cat) : state.all.slice());
+  state.filtered = state.inFilter.filter(c => !state.mastered.has(c.id));
+  state.index = 0;
+  hideCompletion();
+  render();
+  checkCompletion();
 }
-
 function populateCategoryFilter() {
   state.categories.forEach(c => {
     const opt = document.createElement('option');
@@ -327,6 +410,7 @@ function populateCategoryFilter() {
   });
 }
 
+// ---------- copy ----------
 async function copyText(text, btn) {
   const orig = btn.textContent;
   try {
@@ -342,7 +426,6 @@ async function copyText(text, btn) {
   } catch (e) { btn.textContent = 'Failed'; }
   setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1200);
 }
-
 document.addEventListener('click', e => {
   const btn = e.target.closest('.copy-btn');
   if (!btn) return;
@@ -356,29 +439,18 @@ document.addEventListener('click', e => {
   if (text) copyText(text, btn);
 });
 
-function sortByCategoryAndType(cards) {
-  const catOrder = state.categories.reduce((acc, c, i) => { acc[c.id] = i; return acc; }, {});
-  return cards.slice().sort((a, b) => {
-    const ca = catOrder[a.category] ?? 999;
-    const cb = catOrder[b.category] ?? 999;
-    if (ca !== cb) return ca - cb;
-    const ta = questionType(a), tb = questionType(b);
-    if (ta !== tb) return ta.localeCompare(tb);
-    return (a.id || '').localeCompare(b.id || '');
-  });
-}
-
+// ---------- load ----------
 async function load() {
   const res = await fetch('cards.json', { cache: 'no-cache' });
   const data = await res.json();
   els.deckName.textContent = data.deck || 'Flashcards';
   state.categories = data.categories || [];
-  state.all = sortByCategoryAndType(data.cards || []);
-  state.filtered = state.all.slice();
+  state.all = sortByDifficulty(data.cards || []);
+  state.mastered = loadMastered();
   state.stats = loadStats();
   populateCategoryFilter();
   renderStats();
-  render();
+  applyCategoryFilter('');
 }
 
 els.revealBtn.addEventListener('click', revealWithoutScoring);
@@ -389,6 +461,8 @@ els.shuffleBtn.addEventListener('click', shuffle);
 els.dirToggle.addEventListener('click', toggleDirection);
 els.categoryFilter.addEventListener('change', e => applyCategoryFilter(e.target.value));
 els.resetStats.addEventListener('click', resetStats);
+els.completeRestart.addEventListener('click', restartCurrentCategory);
+els.completeClose.addEventListener('click', hideCompletion);
 
 document.addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
@@ -396,6 +470,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') prev();
   else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); revealWithoutScoring(); }
   else if (e.key.toLowerCase() === 'd') toggleDirection();
+  else if (e.key === 'Escape') hideCompletion();
 });
 
 if ('serviceWorker' in navigator) {
