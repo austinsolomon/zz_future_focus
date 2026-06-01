@@ -231,6 +231,24 @@ function triggerKiss() {
   svg.classList.add('kiss-fire');
 }
 
+// Spawn one randomly-placed, randomly-colored heart in the mascot stage
+// every time the user nails a correct answer.
+const HEART_COLORS = ['#ff2d95','#ff6ec7','#ffe600','#c77dff','#00e1ff','#b6ff3a','#ff8a3d','#ffffff'];
+function spawnHeart() {
+  const layer = document.getElementById('heartLayer');
+  if (!layer) return;
+  const h = document.createElement('div');
+  h.className = 'heart-burst';
+  h.textContent = '♥';
+  h.style.left = (8 + Math.random() * 84) + '%';
+  h.style.top  = (15 + Math.random() * 65) + '%';
+  h.style.color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
+  h.style.fontSize = (16 + Math.random() * 18) + 'px';
+  h.style.setProperty('--rot', (Math.random() * 50 - 25) + 'deg');
+  layer.appendChild(h);
+  setTimeout(() => h.remove(), 1500);
+}
+
 // ---------- multiple choice ----------
 function buildOptions(card, answerKey, n = 4) {
   const correct = coreAnswer(card, answerKey);
@@ -281,6 +299,7 @@ function onOptionClick(btn, picked, correct, card) {
   let msg;
   if (isCorrect) {
     triggerKiss();
+    spawnHeart();
     const { next, justMastered } = bumpCorrect(card.id);
     if (justMastered) {
       msg = 'Correct! ✩ Card MASTERED. ✩';

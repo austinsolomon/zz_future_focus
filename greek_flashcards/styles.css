@@ -299,12 +299,49 @@ body {
   padding: 2px 0 0;
   background: linear-gradient(180deg, rgba(42,10,58,0), rgba(42,10,58,0.45));
 }
+.mascot-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
 .mascot-svg {
   width: min(90vw, 340px);
   height: auto;
   max-height: 66px;
   display: block;
   filter: drop-shadow(0 3px 4px rgba(0,0,0,0.25));
+}
+.heart-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 5;
+}
+.heart-burst {
+  position: absolute;
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: center;
+  animation: heartBurst 1.4s cubic-bezier(.34,1.56,.64,1) forwards;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+  will-change: transform, opacity;
+}
+@keyframes heartBurst {
+  0%   { transform: translate(-50%,-50%) scale(0.2) rotate(var(--rot, 0deg)); opacity: 0; }
+  18%  { transform: translate(-50%,-50%) scale(1.6) rotate(var(--rot, 0deg)); opacity: 1; }
+  45%  { transform: translate(-50%,-70%) scale(1.1) rotate(var(--rot, 0deg)); opacity: 1; }
+  100% { transform: translate(-50%,-130%) scale(0.6) rotate(var(--rot, 0deg)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-burst { animation: heartBurstStatic 900ms ease-out forwards; }
+  @keyframes heartBurstStatic {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+    20% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
 }
 .twinkle { animation: twinkle 1.6s ease-in-out infinite alternate; transform-origin: center; }
 @keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
