@@ -1,16 +1,19 @@
 const MASTERY_THRESHOLD = 2;
 
 const state = {
-  all: [],            // all cards (sorted by category+difficulty)
-  inFilter: [],       // all cards matching the current category filter (sorted by difficulty)
-  filtered: [],       // active pool: inFilter minus mastered, sorted by difficulty
-  index: 0,
+  all: [],            // all cards
+  inFilter: [],       // all cards matching the current category filter
+  filtered: [],       // active pool: inFilter minus mastered
   direction: 'en-to-gr',
   category: '',
   categories: [],
   stats: { streak: 0, best: 0, correct: 0, total: 0 },
-  correctCounts: {},  // {cardId: number of correct answers since last wrong}
+  correctCounts: {},  // {cardId: # correct since last wrong}
   currentAnswered: false,
+  // navigation (replaces state.index)
+  currentCard: null,
+  history: [],        // chronological list of cards shown
+  historyIdx: -1,     // pointer into history
 };
 
 const els = {
@@ -36,6 +39,7 @@ const els = {
   instructionsStrip: document.getElementById('instructionsStrip'),
   statStreak: document.getElementById('statStreak'),
   statBest: document.getElementById('statBest'),
+  statLevel: document.getElementById('statLevel'),
   statScore: document.getElementById('statScore'),
   resetStats: document.getElementById('resetStats'),
   completeOverlay: document.getElementById('completeOverlay'),
@@ -99,11 +103,26 @@ function saveStats() {
   localStorage.setItem('gf.correct', state.stats.correct);
   localStorage.setItem('gf.total', state.stats.total);
 }
+function targetDifficulty(streak) {
+  // streak 0-1 → L1, 2-3 → L2, 4-5 → L3, 6-7 → L4, 8+ → L5
+  if (streak >= 8) return 5;
+  if (streak >= 6) return 4;
+  if (streak >= 4) return 3;
+  if (streak >= 2) return 2;
+  return 1;
+}
+
 function renderStats() {
   els.statStreak.textContent = state.stats.streak;
   els.statBest.textContent = state.stats.best;
   els.statScore.textContent = state.stats.correct + ' / ' + state.stats.total;
   els.statStreak.classList.toggle('hot', state.stats.streak >= 5);
+  if (els.statLevel) {
+    const lvl = targetDifficulty(state.stats.streak);
+    els.statLevel.textContent = 'L' + lvl;
+    els.statLevel.classList.toggle('hot', lvl >= 4);
+    els.statLevel.classList.toggle('max', lvl === 5);
+  }
 }
 function loadCounts() {
   try {
@@ -167,15 +186,40 @@ function demoteOneMastered(categoryId) {
   return pick;
 }
 
-function rebuildActivePool(preserveIndex) {
-  const before = state.filtered[state.index] && state.filtered[state.index].id;
+function rebuildActivePool() {
   state.filtered = state.inFilter.filter(c => !isMastered(c.id));
-  if (preserveIndex && before) {
-    const i = state.filtered.findIndex(c => c.id === before);
-    state.index = i >= 0 ? i : 0;
-  } else if (state.index >= state.filtered.length) {
-    state.index = 0;
+}
+
+// Adaptive next-card pick. Higher streak → bias toward higher difficulty.
+// Cards with partial progress (count=1) get a small bonus so they reach
+// mastery quicker; the just-shown card is excluded if alternatives exist.
+function pickNextCard() {
+  if (!state.filtered.length) return null;
+  if (state.filtered.length === 1) return state.filtered[0];
+
+  const target = targetDifficulty(state.stats.streak);
+  const currentId = state.currentCard && state.currentCard.id;
+
+  const weights = state.filtered.map(c => {
+    if (c.id === currentId) return 0;             // no immediate repeat
+    const d = c.difficulty || 1;
+    let w;
+    if (d === target)            w = 5;            // strong pull to target
+    else if (Math.abs(d - target) === 1) w = 2;    // neighbors
+    else if (d < target)         w = 0.6;          // easier — keep some sprinkling
+    else                          w = 0.4;          // too-hard — rare peek-ahead
+    if ((state.correctCounts[c.id] || 0) === 1) w *= 1.6; // boost partials
+    return w;
+  });
+
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return state.filtered[Math.floor(Math.random() * state.filtered.length)];
+  let r = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return state.filtered[i];
   }
+  return state.filtered[state.filtered.length - 1];
 }
 
 // ---------- mascot kiss animation ----------
@@ -259,7 +303,8 @@ function onOptionClick(btn, picked, correct, card) {
   els.feedback.classList.toggle('bad', !isCorrect);
 
   els.answerRow.classList.remove('hidden');
-  rebuildActivePool(true);
+  rebuildActivePool();
+  renderProgressOnly();
   checkCompletion();
 }
 
@@ -315,8 +360,14 @@ function checkCompletion() {
 }
 
 // ---------- render ----------
+function renderProgressOnly() {
+  const masteredCount = state.inFilter.filter(c => isMastered(c.id)).length;
+  els.cardIndex.textContent = String(masteredCount);
+  els.cardTotal.textContent = String(state.inFilter.length);
+}
+
 function render() {
-  const card = state.filtered[state.index];
+  const card = state.currentCard;
   const masteredCount = state.inFilter.filter(c => isMastered(c.id)).length;
 
   if (!card) {
@@ -334,8 +385,7 @@ function render() {
     els.feedback.classList.add('hidden');
     els.notesWrap.hidden = true;
     els.tags.innerHTML = '';
-    els.cardIndex.textContent = '0';
-    els.cardTotal.textContent = '0';
+    renderProgressOnly();
     els.instructionsStrip.innerHTML = '<strong>Tip:</strong> Pick a category.';
     return;
   }
@@ -411,20 +461,43 @@ function render() {
     els.tags.appendChild(s);
   });
 
-  els.cardIndex.textContent = String(state.index + 1);
-  els.cardTotal.textContent = String(state.filtered.length);
+  renderProgressOnly();
   els.bottomRevealBtn.textContent = 'Reveal';
   els.bottomRevealBtn.classList.remove('revealed');
 }
 
-function next() { if (state.filtered.length) { state.index = (state.index + 1) % state.filtered.length; render(); } }
-function prev() { if (state.filtered.length) { state.index = (state.index - 1 + state.filtered.length) % state.filtered.length; render(); } }
-function shuffle() {
-  for (let i = state.filtered.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [state.filtered[i], state.filtered[j]] = [state.filtered[j], state.filtered[i]];
+function gotoCard(card) {
+  state.currentCard = card;
+  render();
+}
+
+function next() {
+  // Walk forward through history if user previously hit prev
+  if (state.historyIdx < state.history.length - 1) {
+    state.historyIdx++;
+    gotoCard(state.history[state.historyIdx]);
+    return;
   }
-  state.index = 0; render();
+  const card = pickNextCard();
+  if (!card) { render(); return; }
+  state.history.push(card);
+  if (state.history.length > 60) state.history.shift();
+  state.historyIdx = state.history.length - 1;
+  gotoCard(card);
+}
+
+function prev() {
+  if (state.historyIdx > 0) {
+    state.historyIdx--;
+    gotoCard(state.history[state.historyIdx]);
+  }
+}
+
+function shuffle() {
+  // With weighted-random selection, "shuffle" = force-pick a new card
+  // (resets the forward-history walk so next() draws fresh).
+  state.history = state.history.slice(0, state.historyIdx + 1);
+  next();
 }
 function toggleDirection() {
   state.direction = state.direction === 'en-to-gr' ? 'gr-to-en' : 'en-to-gr';
@@ -444,9 +517,15 @@ function applyCategoryFilter(cat) {
   state.category = cat;
   state.inFilter = sortByDifficulty(cat ? state.all.filter(c => c.category === cat) : state.all.slice());
   state.filtered = state.inFilter.filter(c => !isMastered(c.id));
-  state.index = 0;
+  state.history = [];
+  state.historyIdx = -1;
+  state.currentCard = null;
   hideCompletion();
-  render();
+  if (state.filtered.length) {
+    next(); // adaptive first pick
+  } else {
+    render();
+  }
   checkCompletion();
 }
 function populateCategoryFilter() {

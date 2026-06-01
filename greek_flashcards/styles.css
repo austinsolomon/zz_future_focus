@@ -381,6 +381,11 @@ body {
 .tag-mastery { color: #2a6a00; background: var(--lime); border-color: #5bbf00; font-weight: 700; }
 .tag-progress { color: #6a3a00; background: #ffe6b3; border-color: #d4933a; font-weight: 700; }
 
+/* ---------- level stat ---------- */
+.stat-value.level { color: var(--purple); }
+.stat-value.level.hot { color: var(--hot); text-shadow: 0 0 6px rgba(255,45,149,0.5); }
+.stat-value.level.max { color: var(--yellow); background: var(--hot); padding: 2px 6px; border-radius: 6px; }
+
 /* ---------- KISS animation ---------- */
 /* Panda (right, center ~300,115) leans 90° CCW + translates left
    so its mouth lands on bear's right cheek (~178,80). Pivots around
