@@ -350,6 +350,8 @@ function render() {
 
   // build full-answer blocks (shown after MC answer)
   els.answerBlocks.innerHTML = '';
+  els.answerRow.classList.add('hidden');
+  state.currentAnswered = false;
   ['en', 'gr', 'phon'].filter(k => card[k]).forEach(k => {
     const block = document.createElement('div');
     block.className = 'ans-block';
