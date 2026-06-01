@@ -42,8 +42,11 @@ const els = {
   instructionsStrip: document.getElementById('instructionsStrip'),
   statStreak: document.getElementById('statStreak'),
   statBest: document.getElementById('statBest'),
-  statLevel: document.getElementById('statLevel'),
   statScore: document.getElementById('statScore'),
+  difficultyMeter: document.getElementById('difficultyMeter'),
+  dmLevel: document.getElementById('dmLevel'),
+  dmDots: document.getElementById('dmDots'),
+  dmHint: document.getElementById('dmHint'),
   resetStats: document.getElementById('resetStats'),
   completeOverlay: document.getElementById('completeOverlay'),
   completeTitle: document.getElementById('completeTitle'),
@@ -106,26 +109,68 @@ function saveStats() {
   localStorage.setItem('gf.correct', state.stats.correct);
   localStorage.setItem('gf.total', state.stats.total);
 }
+// Streak → difficulty tier. The single source of truth, shown in the
+// big Difficulty Meter under the stats bar.
 function targetDifficulty(streak) {
-  // streak 0-1 → L1, 2-3 → L2, 4-5 → L3, 6-7 → L4, 8+ → L5
   if (streak >= 8) return 5;
   if (streak >= 6) return 4;
   if (streak >= 4) return 3;
   if (streak >= 2) return 2;
   return 1;
 }
+// Streak at which the NEXT level kicks in (or null if at max).
+function streakForNextLevel(lvl) {
+  if (lvl >= 5) return null;
+  return [null, 2, 4, 6, 8][lvl];
+}
+
+let lastRenderedLevel = 1;
 
 function renderStats() {
   els.statStreak.textContent = state.stats.streak;
   els.statBest.textContent = state.stats.best;
   els.statScore.textContent = state.stats.correct + ' / ' + state.stats.total;
   els.statStreak.classList.toggle('hot', state.stats.streak >= 5);
-  if (els.statLevel) {
-    const lvl = targetDifficulty(state.stats.streak);
-    els.statLevel.textContent = 'L' + lvl;
-    els.statLevel.classList.toggle('hot', lvl >= 4);
-    els.statLevel.classList.toggle('max', lvl === 5);
+  renderDifficultyMeter();
+}
+
+function renderDifficultyMeter() {
+  if (!els.difficultyMeter) return;
+  const streak = state.stats.streak;
+  const lvl = targetDifficulty(streak);
+
+  // Level label
+  els.dmLevel.textContent = 'L' + lvl;
+  els.dmLevel.classList.toggle('max', lvl === 5);
+
+  // 5-dot progress (filled circles = unlocked tiers)
+  let dotsHtml = '';
+  for (let i = 1; i <= 5; i++) {
+    dotsHtml += `<span class="${i <= lvl ? 'on' : 'off'}">●</span>`;
   }
+  els.dmDots.innerHTML = dotsHtml;
+
+  // Hint text — how to reach the next level (or MAX)
+  if (lvl >= 5) {
+    els.dmHint.textContent = 'MAX DIFFICULTY ✩';
+  } else {
+    const needed = streakForNextLevel(lvl) - streak;
+    els.dmHint.textContent = `${needed} more in a row → L${lvl + 1}`;
+  }
+
+  // Animate on change
+  if (lvl > lastRenderedLevel) {
+    els.difficultyMeter.classList.remove('dm-up', 'dm-down');
+    void els.difficultyMeter.offsetWidth;
+    els.difficultyMeter.classList.add('dm-up');
+    setTimeout(() => els.difficultyMeter.classList.remove('dm-up'), 950);
+  } else if (lvl < lastRenderedLevel) {
+    els.difficultyMeter.classList.remove('dm-up', 'dm-down');
+    void els.difficultyMeter.offsetWidth;
+    els.difficultyMeter.classList.add('dm-down');
+    setTimeout(() => els.difficultyMeter.classList.remove('dm-down'), 950);
+  }
+  lastRenderedLevel = lvl;
 }
 function loadCounts() {
   try {
@@ -453,8 +498,9 @@ function render() {
   }
 
   els.concept.textContent = card.concept || '';
+  const stars = '★'.repeat(card.difficulty || 1);
   els.instructionsStrip.innerHTML =
-    `<strong>${shortType(card)}</strong> · L${card.difficulty || 1} — ${getInstruction(card)}`;
+    `<strong>${shortType(card)}</strong> <span class="card-stars">${stars}</span> — ${getInstruction(card)}`;
 
   const promptKey = state.direction === 'en-to-gr' ? 'en' : 'gr';
   const answerKey = state.direction === 'en-to-gr' ? 'gr' : 'en';
@@ -501,7 +547,7 @@ function render() {
   if (card.category) {
     const s = document.createElement('span');
     s.className = 'tag tag-category';
-    s.textContent = categoryLabel(card.category) + ' · L' + (card.difficulty || 1);
+    s.textContent = categoryLabel(card.category) + ' ' + '★'.repeat(card.difficulty || 1);
     els.tags.appendChild(s);
   }
   const masteryTag = document.createElement('span');

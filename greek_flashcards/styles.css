@@ -419,10 +419,91 @@ body {
 .tag-mastery { color: #2a6a00; background: var(--lime); border-color: #5bbf00; font-weight: 700; }
 .tag-progress { color: #6a3a00; background: #ffe6b3; border-color: #d4933a; font-weight: 700; }
 
-/* ---------- level stat ---------- */
-.stat-value.level { color: var(--purple); }
-.stat-value.level.hot { color: var(--hot); text-shadow: 0 0 6px rgba(255,45,149,0.5); }
-.stat-value.level.max { color: var(--yellow); background: var(--hot); padding: 2px 6px; border-radius: 6px; }
+/* ---------- DIFFICULTY METER (the one place to look) ---------- */
+.difficulty-meter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 8px 6px;
+  padding: 8px 12px;
+  border: 3px solid var(--purple);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff6fc 0%, #ffe7f6 100%);
+  box-shadow: 0 3px 0 var(--purple), 0 0 0 2px var(--yellow) inset;
+  font-family: inherit;
+  font-weight: 700;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.dm-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--purple);
+  font-weight: 900;
+}
+.dm-level {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--hot);
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0 var(--yellow);
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.65);
+  border: 2px solid var(--hot);
+  min-width: 46px;
+  text-align: center;
+}
+.dm-level.max {
+  background: var(--yellow);
+  color: var(--hot);
+  border-color: var(--hot);
+  text-shadow: 1px 1px 0 #fff;
+  animation: dmMaxGlow 1.4s ease-in-out infinite alternate;
+}
+@keyframes dmMaxGlow { from { box-shadow: 0 0 4px var(--hot); } to { box-shadow: 0 0 14px var(--hot); } }
+.dm-dots {
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: var(--purple);
+  font-weight: 900;
+}
+.dm-dots .on  { color: var(--hot); text-shadow: 0 0 4px var(--hot); }
+.dm-dots .off { color: rgba(157,78,221,0.3); }
+.dm-hint {
+  font-size: 12px;
+  color: #5b2a82;
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Flash animations on level change */
+.difficulty-meter.dm-up {
+  animation: dmUp 900ms ease-out;
+}
+.difficulty-meter.dm-down {
+  animation: dmDown 900ms ease-out;
+}
+@keyframes dmUp {
+  0%   { transform: scale(1);    box-shadow: 0 3px 0 var(--purple), 0 0 0 2px var(--yellow) inset; background: #b6ff3a; }
+  20%  { transform: scale(1.08); box-shadow: 0 5px 0 #4f8a00, 0 0 24px #b6ff3a; }
+  100% { transform: scale(1);    box-shadow: 0 3px 0 var(--purple), 0 0 0 2px var(--yellow) inset; }
+}
+@keyframes dmDown {
+  0%   { transform: scale(1);    background: linear-gradient(135deg, #ffd6e7 0%, #ffb3cf 100%); }
+  20%  { transform: scale(0.94); box-shadow: 0 2px 0 #b00050, 0 0 24px #ff2d95; }
+  100% { transform: scale(1);    box-shadow: 0 3px 0 var(--purple), 0 0 0 2px var(--yellow) inset; }
+}
+
+/* Per-card difficulty stars (visually distinct from the L1-L5 meter) */
+.card-stars {
+  color: var(--hot);
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin: 0 4px;
+  text-shadow: 1px 1px 0 var(--yellow);
+}
 
 /* ---------- KISS animation ---------- */
 /* Panda (right, center ~300,115) leans 90° CCW + translates left

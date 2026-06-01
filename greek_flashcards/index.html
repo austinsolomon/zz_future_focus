@@ -23,9 +23,15 @@
   <div class="stats-bar">
     <span class="stat"><span class="stat-label">Streak</span><span class="stat-value" id="statStreak">0</span></span>
     <span class="stat"><span class="stat-label">Best</span><span class="stat-value best" id="statBest">0</span></span>
-    <span class="stat"><span class="stat-label">Level</span><span class="stat-value level" id="statLevel">L1</span></span>
     <span class="stat"><span class="stat-label">Score</span><span class="stat-value" id="statScore">0 / 0</span></span>
     <button class="reset-stats" id="resetStats" type="button" title="Reset all stats">Reset</button>
+  </div>
+
+  <div class="difficulty-meter" id="difficultyMeter" role="status" aria-live="polite">
+    <span class="dm-label">DIFFICULTY</span>
+    <span class="dm-level" id="dmLevel">L1</span>
+    <span class="dm-dots" id="dmDots" aria-hidden="true">●○○○○</span>
+    <span class="dm-hint" id="dmHint">2 right in a row → L2</span>
   </div>
 
   <main class="card-stage">
