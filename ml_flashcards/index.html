@@ -12,24 +12,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body class="is-intro">
   <div class="app">
 
     <!-- CONSOLIDATED TOP BAR -->
     <header class="topbar">
-      <nav id="catTabs" class="cat-tabs" aria-label="Sections"></nav>
+      <!-- advancing chronological timeline (hero) -->
+      <div class="tline" id="tline" aria-hidden="true">
+        <div class="tline-track"><i class="tline-fill" id="tlFill"></i></div>
+        <div class="tline-ticks" id="tlTicks"></div>
+        <div class="tline-marker" id="tlMarker"><span class="tline-year" id="yearText">—</span></div>
+      </div>
       <div id="meter" class="metabar">
         <span class="lvl" id="meterBadge">1</span>
-        <div class="meter-mid">
-          <div class="meter-bar" aria-hidden="true"><i id="meterFill"></i></div>
-          <div class="m-hint" id="meterHint"><span id="posText">card 1</span><span class="sep"> · </span><span id="yearText">—</span><span class="sep"> · </span><span id="streakChip">strk <b id="streak">0</b></span><span class="sep"> · </span>best <b id="best">0</b><span class="sep"> · </span><b id="score">0/0</b></div>
-        </div>
+        <div class="m-hint" id="meterHint"><span id="posText">card 1</span><span class="sep"> · </span><span id="streakChip">strk <b id="streak">0</b></span><span class="sep"> · </span>best <b id="best">0</b><span class="sep"> · </span><b id="score">0/0</b></div>
         <span class="m-tools">
           <button id="introBtn" class="icon-btn" title="LLM overview" aria-label="LLM overview">3D</button>
           <button id="dirToggle" class="icon-btn" title="Flip direction (A↔B)" aria-label="Flip direction">A→B</button>
-          <button id="restartRunBtn" class="icon-btn" title="Restart section" aria-label="Restart section">↺</button>
+          <button id="restartRunBtn" class="icon-btn" title="Restart from the start" aria-label="Restart">↺</button>
           <button id="resetBtn" class="icon-btn" title="Reset all progress" aria-label="Reset all">⌫</button>
         </span>
       </div>
@@ -42,9 +44,9 @@
       <section class="intro" id="intro">
         <canvas id="vizCanvas" class="viz-canvas"></canvas>
         <div class="intro-cap">
-          <div class="intro-kicker">HOW AN LLM WORKS</div>
+          <div class="intro-kicker">INSIDE THE FACTORY</div>
           <div class="intro-flow">tokens → embeddings → transformer × N → next-token</div>
-          <div class="intro-sub">A 3D bird's-eye view of the whole architecture you're about to learn — drag to rotate, then press Begin.</div>
+          <div class="intro-sub">Follow one data point travelling the whole machine — drag to rotate, then press Begin.</div>
         </div>
       </section>
 
@@ -52,14 +54,6 @@
         <div class="card-top">
           <div class="card-concept" id="cardConcept">—</div>
           <div class="card-year" id="cardYear">—</div>
-        </div>
-
-        <!-- chronological timeline visual -->
-        <div class="timeline" id="timeline" aria-hidden="true">
-          <div class="tl-track"></div>
-          <div class="tl-marker" id="tlMarker"></div>
-          <span class="tl-min" id="tlMin"></span>
-          <span class="tl-max" id="tlMax"></span>
         </div>
 
         <!-- concept diagram (minimal schematic) -->
@@ -88,19 +82,19 @@
 
   </div>
 
-  <!-- CATEGORY COMPLETE OVERLAY -->
+  <!-- TIMELINE COMPLETE OVERLAY -->
   <div id="overlay" class="overlay" hidden>
     <div class="overlay-card">
-      <div class="overlay-kicker">DECK CLEARED</div>
-      <h2 class="overlay-title" id="overlayTitle">CATEGORY COMPLETE</h2>
+      <div class="overlay-kicker">TIMELINE CLEARED</div>
+      <h2 class="overlay-title" id="overlayTitle">TIMELINE COMPLETE</h2>
       <p class="overlay-sub" id="overlaySub"></p>
       <div class="overlay-actions">
-        <button id="restartBtn" class="nav-next overlay-btn">Restart this category</button>
-        <button id="overlayCloseBtn" class="nav-sec overlay-btn">Pick another</button>
+        <button id="restartBtn" class="nav-next overlay-btn">Replay from the start</button>
+        <button id="overlayCloseBtn" class="nav-sec overlay-btn">Back to overview</button>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

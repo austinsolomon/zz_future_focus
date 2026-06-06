@@ -21,10 +21,11 @@ const LS_STATE = "nn.state";
    Pure logic (also imported by verify.js — keep identical)
    =========================================================== */
 
-/** Order a category's cards chronologically: year, then difficulty, then id. */
+/** Order cards strictly chronologically: year, then difficulty, then id.
+    Omit catId (or pass null) for the full cross-category timeline. */
 function buildSequence(cards, catId){
   return cards
-    .filter(c => c.category === catId)
+    .filter(c => !catId || c.category === catId)
     .slice()
     .sort((a, b) =>
       (a.year - b.year) ||
@@ -366,36 +367,30 @@ function renderViz(card){
    =========================================================== */
 const state = {
   cards: [], byId: {},
-  catId: CATEGORIES[0].id,
   direction: "ab",
-  seq: [], index: 0,
+  seq: [], index: 0,            // single global chronological sequence
   current: null,
   answered: false,
-  pending: null,          // "advance" | "restart" | "finish"
-  streak: 0, best: 0,     // streak = cleared-in-a-row this run; best = furthest ever
+  pending: null,                // "advance" | "restart" | "finish"
+  streak: 0, best: 0,           // streak = cleared-in-a-row this run; best = furthest ever
   correct: 0, total: 0,
-  bestByCat: {},
   minYear: 1940, maxYear: 2025,
-  mode: "intro",          // "intro" (3D overview) | "deck"
+  mode: "intro",                // "intro" (3D overview) | "deck"
 };
 
 function loadState(){
   try{
     const s = JSON.parse(localStorage.getItem(LS_STATE)) || {};
     state.best = s.best || 0;
-    state.bestByCat = s.bestByCat || {};
     state.direction = s.direction === "ba" ? "ba" : "ab";
-    if (s.catId && CATEGORIES.some(c => c.id === s.catId)) state.catId = s.catId;
   }catch{}
 }
 function saveState(){
   localStorage.setItem(LS_STATE, JSON.stringify({
-    best: state.best, bestByCat: state.bestByCat,
-    direction: state.direction, catId: state.catId,
+    best: state.best, direction: state.direction,
   }));
 }
 
-const catMeta = id => CATEGORIES.find(c => c.id === id);
 const catCards = id => state.cards.filter(c => c.category === id);
 
 /* ===========================================================
@@ -405,10 +400,11 @@ const HAS_DOM = typeof document !== "undefined";
 const $ = id => document.getElementById(id);
 const el = {};
 if (HAS_DOM){
-  ["catTabs","streak","best","score","streakChip","resetBtn",
-   "meter","meterBadge","meterFill","meterHint","posText","yearText",
+  ["streak","best","score","streakChip","resetBtn",
+   "meter","meterBadge","meterHint","posText","yearText",
+   "tline","tlFill","tlTicks","tlMarker",
    "intro","vizCanvas","card",
-   "cardConcept","cardYear","timeline","tlMarker","tlMin","tlMax","viz",
+   "cardConcept","cardYear","viz",
    "prompt","options","answerBlock","ansA","ansB","ansNotes","tagsRow",
    "nextBtn","revealBtn","prevBtn","restartRunBtn","dirToggle","introBtn",
    "overlay","overlayTitle","overlaySub","restartBtn","overlayCloseBtn",
@@ -422,22 +418,17 @@ const escapeHtml = s => String(s).replace(/[&<>"']/g, c =>
 /* ===========================================================
    Rendering
    =========================================================== */
-function renderTabs(){
-  el.catTabs.innerHTML = "";
-  CATEGORIES.forEach(cat => {
-    const total = catCards(cat.id).length;
-    const best = state.bestByCat[cat.id] || 0;
-    const b = document.createElement("button");
-    b.className = "cat-tab" + (best >= total && total > 0 ? " done" : "");
-    b.setAttribute("role","tab");
-    b.setAttribute("aria-selected", String(cat.id === state.catId));
-    b.innerHTML = `${cat.label}<span class="ct-count">${best}/${total}</span>`;
-    b.addEventListener("click", () => {
-      if (cat.id === state.catId) return;
-      switchCategory(cat.id);
-    });
-    el.catTabs.appendChild(b);
-  });
+function buildTicks(){
+  const span = Math.max(1, state.maxYear - state.minYear);
+  const nice = [1950,1970,1990,2010].filter(y => y > state.minYear && y < state.maxYear);
+  const years = [state.minYear, ...nice, state.maxYear];
+  el.tlTicks.innerHTML = years.map(y => {
+    const pct = ((y - state.minYear) / span) * 100;
+    const style = y === state.minYear ? "left:0;transform:translateX(0)"
+                : y === state.maxYear ? "left:100%;transform:translateX(-100%)"
+                : `left:${pct}%`;
+    return `<span style="${style}">${y}</span>`;
+  }).join("");
 }
 
 function renderStats(){
@@ -451,9 +442,7 @@ function renderMeter(){
   const len = state.seq.length || 1;
   const pos = state.index + 1;
   el.meterBadge.textContent = pos;
-  el.meterFill.style.width = (state.index / Math.max(1, len - 1) * 100) + "%";
   el.posText.textContent = `card ${pos}/${len}`;
-  el.yearText.textContent = state.current ? state.current.year : "—";
 }
 
 function flashMeter(dir){
@@ -468,8 +457,8 @@ function renderTimeline(card){
   const span = Math.max(1, state.maxYear - state.minYear);
   const pct = Math.max(0, Math.min(1, (card.year - state.minYear) / span)) * 100;
   el.tlMarker.style.left = pct + "%";
-  el.tlMin.textContent = state.minYear;
-  el.tlMax.textContent = state.maxYear;
+  el.tlFill.style.width = pct + "%";
+  el.yearText.textContent = card.year;
 }
 
 function setNextLabel(){
@@ -486,7 +475,6 @@ function renderCard(){
   state.current = card;
   state.answered = false;
   state.pending = null;
-  const cat = catMeta(card.category);
 
   el.cardConcept.innerHTML = `${card.concept} ${stars(card.difficulty)}`;
   el.cardYear.textContent = card.year;
@@ -539,10 +527,7 @@ function onAnswer(btn, isCorrect, correctText){
     btn.classList.add("correct");
     state.correct++;
     state.streak = state.index + 1;                  // cleared this many in a row
-    const wasBest = state.streak > state.best;
-    if (wasBest){ state.best = state.streak; flashMeter("up"); }
-    if (state.streak > (state.bestByCat[state.catId] || 0))
-      state.bestByCat[state.catId] = state.streak;
+    if (state.streak > state.best){ state.best = state.streak; flashMeter("up"); }
     state.pending = (state.index + 1 >= state.seq.length) ? "finish" : "advance";
   } else {
     btn.classList.add("wrong");
@@ -554,7 +539,6 @@ function onAnswer(btn, isCorrect, correctText){
   revealAnswerBlock(correctText);
   saveState();
   renderStats();
-  renderTabs();
   setNextLabel();
 }
 
@@ -590,34 +574,23 @@ function nextAction(){
 
 function prevCard(){ if (state.mode === "deck" && state.index > 0) goTo(state.index - 1); }
 
-function restartRun(){ state.streak = 0; goTo(0); renderStats(); renderMeter(); }
-
-function switchCategory(catId){
+function restartRun(){
   if (state.mode === "intro") showDeck();
-  state.catId = catId;
-  state.seq = buildSequence(state.cards, catId).map(c => c.id);
-  state.index = 0; state.streak = 0; state.current = null;
-  saveState();
-  renderTabs(); renderStats();
   el.overlay.hidden = true;
-  renderCard();
+  state.streak = 0; goTo(0); renderStats();
 }
 
 /* ===========================================================
-   Section complete overlay
+   Timeline-complete overlay
    =========================================================== */
 function showComplete(){
-  const cat = catMeta(state.catId);
-  el.overlayTitle.textContent = "SECTION CLEARED";
+  el.overlayTitle.textContent = "TIMELINE COMPLETE";
   el.overlaySub.textContent =
-    `You ran all ${state.seq.length} ${cat.label} cards in a row — no misses.`;
+    `You traced all ${state.seq.length} ideas from ${state.minYear} to ${state.maxYear} — no misses.`;
   el.overlay.hidden = false;
 }
 function overlayRestart(){ el.overlay.hidden = true; restartRun(); }
-function overlayNext(){
-  const i = CATEGORIES.findIndex(c => c.id === state.catId);
-  switchCategory(CATEGORIES[(i + 1) % CATEGORIES.length].id);
-}
+function overlayNext(){ el.overlay.hidden = true; enterIntro(); }
 
 /* ===========================================================
    Controls
@@ -630,11 +603,11 @@ function toggleDirection(){
 }
 
 function resetAll(){
-  if (!confirm("Reset best runs and stats for every section?")) return;
-  state.best = 0; state.bestByCat = {};
+  if (!confirm("Reset your best run and stats?")) return;
+  state.best = 0;
   state.streak = 0; state.correct = 0; state.total = 0; state.index = 0;
   saveState();
-  renderTabs(); renderStats(); renderCard();
+  renderStats(); renderCard();
 }
 
 /* ===========================================================
@@ -718,6 +691,23 @@ function initIntroViz(){
             B.e.forEach(([i,j]) => { ctx.moveTo(pv[i][0],pv[i][1]); ctx.lineTo(pv[j][0],pv[j][1]); });
             ctx.stroke();
          });
+    // a single data point travelling through the factory (North Star seed)
+    const phase = (performance.now() % 5200) / 5200;       // 0..1 loop
+    const px = -2.9 + phase * 5.5;                          // tokens -> output
+    const py = 0.12 * Math.sin(phase * Math.PI * 6);        // slight wobble
+    for (let k = 0; k < 5; k++){                            // short comet trail
+      const tp = project([px - k * 0.16, py, 0]);
+      const a = (1 - k / 5) * 0.9;
+      ctx.beginPath(); ctx.arc(tp[0], tp[1], 3.4 - k * 0.5, 0, 6.2832);
+      ctx.fillStyle = `rgba(92,214,239,${a})`; ctx.fill();
+    }
+    const head = project([px, py, 0]);
+    ctx.beginPath(); ctx.arc(head[0], head[1], 5.2, 0, 6.2832);
+    ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.fill();
+    ctx.shadowColor = "rgba(92,214,239,.9)"; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(head[0], head[1], 3, 0, 6.2832); ctx.fillStyle = "#5cd6ef"; ctx.fill();
+    ctx.shadowBlur = 0;
+
     ctx.fillStyle = "rgba(138,152,173,.92)"; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
     labels.forEach(Lb => { const p=project(Lb.p); ctx.fillText(Lb.t, p[0], p[1]); });
     raf = requestAnimationFrame(frame);
@@ -759,7 +749,8 @@ async function boot(){
   const years = state.cards.map(c => c.year).filter(Number.isFinite);
   if (years.length){ state.minYear = Math.min(...years); state.maxYear = Math.max(...years); }
 
-  state.seq = buildSequence(state.cards, state.catId).map(c => c.id);
+  state.seq = buildSequence(state.cards).map(c => c.id);   // full chronological timeline
+  buildTicks();
 
   el.nextBtn.addEventListener("click", nextAction);
   el.prevBtn.addEventListener("click", prevCard);
@@ -781,7 +772,7 @@ async function boot(){
     }
   });
 
-  renderTabs(); renderStats();
+  renderStats();
   enterIntro();   // show the 3D LLM overview first; "Begin ›" starts the deck
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
