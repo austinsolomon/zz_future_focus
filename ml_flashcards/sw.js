@@ -1,5 +1,5 @@
 /* Service worker — ML Neural Net Evolution flashcards */
-const CACHE = "ml-flashcards-v1";
+const CACHE = "ml-flashcards-v2";
 const STATIC = [
   "./",
   "./index.html",

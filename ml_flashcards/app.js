@@ -376,6 +376,7 @@ const state = {
   correct: 0, total: 0,
   bestByCat: {},
   minYear: 1940, maxYear: 2025,
+  mode: "intro",          // "intro" (3D overview) | "deck"
 };
 
 function loadState(){
@@ -406,9 +407,10 @@ const el = {};
 if (HAS_DOM){
   ["catTabs","instrStrip","streak","best","score","streakChip","resetBtn",
    "meter","meterBadge","meterFill","meterHint",
+   "intro","vizCanvas","card",
    "cardConcept","cardYear","timeline","tlMarker","tlMin","tlMax","viz",
    "prompt","options","answerBlock","ansA","ansB","ansNotes","tagsRow",
-   "nextBtn","revealBtn","prevBtn","restartRunBtn","dirToggle",
+   "nextBtn","revealBtn","prevBtn","restartRunBtn","dirToggle","introBtn",
    "overlay","overlayTitle","overlaySub","restartBtn","overlayCloseBtn",
   ].forEach(k => el[k] = $(k));
 }
@@ -569,7 +571,7 @@ function onAnswer(btn, isCorrect, correctText){
 
 /* reveal without scoring — does NOT consume the attempt */
 function onReveal(){
-  if (state.answered || !state.current) return;
+  if (state.mode !== "deck" || state.answered || !state.current) return;
   el.answerBlock.hidden = false;
   const correct = state.direction === "ab" ? state.current.b[0] : state.current.a[0];
   [...el.options.children].forEach(btn => {
@@ -586,6 +588,7 @@ function goTo(idx){
 }
 
 function nextAction(){
+  if (state.mode === "intro"){ exitIntroToDeck(); return; }
   if (!state.answered){
     // nudge the learner to answer first
     el.options.classList.remove("nudge"); void el.options.offsetWidth; el.options.classList.add("nudge");
@@ -596,11 +599,12 @@ function nextAction(){
   goTo(state.index + 1);
 }
 
-function prevCard(){ if (state.index > 0) goTo(state.index - 1); }
+function prevCard(){ if (state.mode === "deck" && state.index > 0) goTo(state.index - 1); }
 
 function restartRun(){ state.streak = 0; goTo(0); renderStats(); renderMeter(); }
 
 function switchCategory(catId){
+  if (state.mode === "intro") showDeck();
   state.catId = catId;
   state.seq = buildSequence(state.cards, catId).map(c => c.id);
   state.index = 0; state.streak = 0; state.current = null;
@@ -645,6 +649,110 @@ function resetAll(){
 }
 
 /* ===========================================================
+   Intro — dependency-free 3D LLM overview (canvas 2D wireframe)
+   =========================================================== */
+let introCtl = null;
+
+function enterIntro(){
+  state.mode = "intro";
+  document.body.classList.add("is-intro");
+  el.intro.hidden = false; el.card.hidden = true;
+  el.nextBtn.textContent = "Begin ›";
+  el.nextBtn.classList.remove("is-wait","restart");
+  stopIntroViz(); initIntroViz();
+}
+function showDeck(){
+  stopIntroViz();
+  state.mode = "deck";
+  document.body.classList.remove("is-intro");
+  el.intro.hidden = true; el.card.hidden = false;
+}
+function exitIntroToDeck(){ showDeck(); renderCard(); }
+function stopIntroViz(){ if (introCtl){ introCtl.stop(); introCtl = null; } }
+
+function initIntroViz(){
+  const cv = el.vizCanvas;
+  if (!cv || !cv.getContext) return;
+  const ctx = cv.getContext("2d");
+  let W = 0, H = 0, cx = 0, cy = 0, dpr = 1, raf = 0;
+  let angY = 0.7, angX = -0.32, dragging = false, lastX = 0, lastY = 0;
+  const focal = 5.4;
+
+  function resize(){
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth || 320; H = cv.clientHeight || 240;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx = W / 2; cy = H / 2;
+  }
+
+  // ---- scene: tokens -> embeddings -> transformer xN -> output ----
+  const boxes = [], lines = [], labels = [];
+  const addBox = (X,Y,Z,sx,sy,sz,col) => {
+    const x0=X-sx/2,x1=X+sx/2,y0=Y-sy/2,y1=Y+sy/2,z0=Z-sz/2,z1=Z+sz/2;
+    boxes.push({col, v:[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],
+      e:[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]});
+  };
+  for (let i=0;i<4;i++) addBox(-2.7, 0.6-i*0.4, 0, 0.22,0.22,0.22, "c");      // tokens
+  for (let i=0;i<4;i++) addBox(-1.75, 0.6-i*0.4, 0, 0.26,0.26,0.5, "v");      // embeddings
+  for (let i=0;i<5;i++) addBox(-0.5+i*0.42, 0, 0, 0.28,1.5,1.2, "v");         // transformer stack
+  [0.5,1.1,0.8,1.6].forEach((h,i)=> addBox(2.5, -0.85+h/2, -0.5+i*0.33, 0.18,h,0.18, "c")); // output bars
+  lines.push([[-2.45,0,0],[-1.95,0,0]]);
+  lines.push([[-1.5,0,0],[-0.75,0,0]]);
+  lines.push([[1.25,0,0],[2.35,0,0]]);
+  labels.push({p:[-2.7,-1.05,0],t:"tokens"});
+  labels.push({p:[-1.75,-1.25,0],t:"embeddings"});
+  labels.push({p:[0.35,-1.35,0],t:"transformer × N"});
+  labels.push({p:[2.5,-1.5,0],t:"next-token"});
+
+  function project(p){
+    const [x,y,z] = p;
+    const cX=Math.cos(angX), sX=Math.sin(angX);
+    const y2 = y*cX - z*sX, z2 = y*sX + z*cX;
+    const cY=Math.cos(angY), sY=Math.sin(angY);
+    const x2 = x*cY + z2*sY, z3 = -x*sY + z2*cY;
+    const world = Math.min(W,H) * 0.17;
+    const scale = focal / (focal - z3);
+    return [cx + x2*world*scale, cy - y2*world*scale, z3];
+  }
+
+  function frame(){
+    if (!dragging) angY += 0.004;
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(120,140,170,.45)";
+    lines.forEach(Ln => { const a=project(Ln[0]), b=project(Ln[1]); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); });
+    boxes.map(B => { const pv=B.v.map(project); return {B,pv,az:pv.reduce((s,p)=>s+p[2],0)/8}; })
+         .sort((a,b)=>a.az-b.az)
+         .forEach(({B,pv}) => {
+            ctx.strokeStyle = B.col==="c" ? "rgba(92,214,239,.92)" : "rgba(139,123,255,.92)";
+            ctx.lineWidth = 1.1; ctx.beginPath();
+            B.e.forEach(([i,j]) => { ctx.moveTo(pv[i][0],pv[i][1]); ctx.lineTo(pv[j][0],pv[j][1]); });
+            ctx.stroke();
+         });
+    ctx.fillStyle = "rgba(138,152,173,.92)"; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.textAlign = "center";
+    labels.forEach(Lb => { const p=project(Lb.p); ctx.fillText(Lb.t, p[0], p[1]); });
+    raf = requestAnimationFrame(frame);
+  }
+
+  const onDown = e => { dragging=true; lastX=e.clientX; lastY=e.clientY; try{ cv.setPointerCapture(e.pointerId); }catch{} };
+  const onMove = e => { if(!dragging) return; angY+=(e.clientX-lastX)*0.01; angX+=(e.clientY-lastY)*0.005; angX=Math.max(-1.2,Math.min(0.5,angX)); lastX=e.clientX; lastY=e.clientY; };
+  const onUp = () => { dragging=false; };
+  cv.addEventListener("pointerdown", onDown);
+  cv.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("resize", resize);
+
+  resize(); frame();
+  introCtl = { stop(){
+    cancelAnimationFrame(raf);
+    cv.removeEventListener("pointerdown", onDown);
+    cv.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("resize", resize);
+  }};
+}
+
+/* ===========================================================
    Boot
    =========================================================== */
 async function boot(){
@@ -668,6 +776,7 @@ async function boot(){
   el.prevBtn.addEventListener("click", prevCard);
   el.revealBtn.addEventListener("click", onReveal);
   el.restartRunBtn.addEventListener("click", restartRun);
+  el.introBtn.addEventListener("click", enterIntro);
   el.dirToggle.addEventListener("click", toggleDirection);
   el.resetBtn.addEventListener("click", resetAll);
   el.restartBtn.addEventListener("click", overlayRestart);
@@ -683,7 +792,8 @@ async function boot(){
     }
   });
 
-  renderTabs(); renderInstr(); renderStats(); renderCard();
+  renderTabs(); renderInstr(); renderStats();
+  enterIntro();   // show the 3D LLM overview first; "Begin ›" starts the deck
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 }

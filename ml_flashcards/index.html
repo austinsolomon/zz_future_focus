@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="is-intro">
   <div class="app">
 
     <!-- HEADER -->
@@ -24,6 +24,7 @@
         <h1 class="hdr-title">ML <span class="dot">·</span> Architectures</h1>
       </div>
       <div class="hdr-tools">
+        <button id="introBtn" class="icon-btn" title="LLM overview" aria-label="LLM overview">3D</button>
         <button id="dirToggle" class="icon-btn" title="Flip direction (A↔B)" aria-label="Flip direction">A→B</button>
         <button id="restartRunBtn" class="icon-btn" title="Restart from card 1" aria-label="Restart run">↺</button>
       </div>
@@ -54,7 +55,18 @@
 
     <!-- CARD STAGE -->
     <main class="stage" id="stage">
-      <div class="card" id="card">
+
+      <!-- INTRO: 3D LLM overview (shown first on load) -->
+      <section class="intro" id="intro">
+        <canvas id="vizCanvas" class="viz-canvas"></canvas>
+        <div class="intro-cap">
+          <div class="intro-kicker">HOW AN LLM WORKS</div>
+          <div class="intro-flow">tokens → embeddings → transformer × N → next-token</div>
+          <div class="intro-sub">A 3D bird's-eye view of the whole architecture you're about to learn — drag to rotate, then press Begin.</div>
+        </div>
+      </section>
+
+      <div class="card" id="card" hidden>
         <div class="card-top">
           <div class="card-concept" id="cardConcept">—</div>
           <div class="card-year" id="cardYear">—</div>
