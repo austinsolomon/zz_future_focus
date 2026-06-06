@@ -649,12 +649,17 @@ function renderTimeline(card){
 }
 
 function setNextLabel(){
-  el.nextBtn.classList.remove("restart");
-  if (!state.answered){ el.nextBtn.textContent = "Next ›"; el.nextBtn.classList.add("is-wait"); return; }
+  // No "Next" — correct answers auto-advance. The big button only appears
+  // when there's a real choice to make: restart after a miss.
   el.nextBtn.classList.remove("is-wait");
-  if (state.pending === "restart"){ el.nextBtn.textContent = "↺ Restart"; el.nextBtn.classList.add("restart"); }
-  else if (state.pending === "finish"){ el.nextBtn.textContent = "Finish ✓"; }
-  else { el.nextBtn.textContent = "Next ›"; }
+  if (state.pending === "restart"){
+    el.nextBtn.hidden = false;
+    el.nextBtn.textContent = "↺ Restart";
+    el.nextBtn.classList.add("restart");
+  } else {
+    el.nextBtn.hidden = true;
+    el.nextBtn.classList.remove("restart");
+  }
 }
 
 function renderCard(){
@@ -814,6 +819,7 @@ function enterIntro(){
   state.mode = "intro";
   document.body.classList.add("is-intro");
   el.intro.hidden = false; el.card.hidden = true;
+  el.nextBtn.hidden = false;
   el.nextBtn.textContent = "Begin ›";
   el.nextBtn.classList.remove("is-wait","restart");
   stopIntroViz(); initIntroViz();
