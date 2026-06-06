@@ -56,22 +56,15 @@ for (const dir of ["ab","ba"]){
 }
 if (mcOK) ok(`every card in both A→B and B→A yields 4 distinct options incl. the answer`);
 
-/* 3) chronological sequence -------------------------------------------- */
-console.log("\n[3] chronological sequence ordering");
-let seqOK = true;
-for (const cat of CATS){
-  const seq = buildSequence(cards, cat);
-  if (seq.length !== cards.filter(c => c.category === cat).length){
-    bad(`${cat}: sequence does not cover all cards`); seqOK = false;
-  }
-  for (let i = 1; i < seq.length; i++){
-    if (seq[i].year < seq[i-1].year){ bad(`${cat}: out of order at ${i}`); seqOK = false; break; }
-  }
+/* 3) single global chronological timeline ------------------------------ */
+console.log("\n[3] global chronological ordering");
+const seq = buildSequence(cards);                 // no catId = full timeline
+let seqOK = seq.length === cards.length;
+if (!seqOK) bad(`global sequence covers ${seq.length} of ${cards.length} cards`);
+for (let i = 1; i < seq.length; i++){
+  if (seq[i].year < seq[i-1].year){ bad(`out of chronological order at ${i}`); seqOK = false; break; }
 }
-if (seqOK){
-  const f = buildSequence(cards, "foundations");
-  ok(`each section sorted oldest→newest (foundations: ${f[0].year} … ${f[f.length-1].year})`);
-}
+if (seqOK) ok(`all ${seq.length} cards in one timeline, oldest→newest (${seq[0].year} → ${seq[seq.length-1].year})`);
 
 /* 4) diagram coverage -------------------------------------------------- */
 console.log("\n[4] concept diagram coverage");
