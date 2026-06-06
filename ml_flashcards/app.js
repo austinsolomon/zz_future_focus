@@ -405,8 +405,8 @@ const HAS_DOM = typeof document !== "undefined";
 const $ = id => document.getElementById(id);
 const el = {};
 if (HAS_DOM){
-  ["catTabs","instrStrip","streak","best","score","streakChip","resetBtn",
-   "meter","meterBadge","meterFill","meterHint",
+  ["catTabs","streak","best","score","streakChip","resetBtn",
+   "meter","meterBadge","meterFill","meterHint","posText","yearText",
    "intro","vizCanvas","card",
    "cardConcept","cardYear","timeline","tlMarker","tlMin","tlMax","viz",
    "prompt","options","answerBlock","ansA","ansB","ansNotes","tagsRow",
@@ -440,15 +440,6 @@ function renderTabs(){
   });
 }
 
-function renderInstr(){
-  const cat = catMeta(state.catId);
-  const dirLabel = state.direction === "ab" ? "term" : "definition";
-  el.instrStrip.innerHTML =
-    `<strong>${cat.label}</strong><span class="sep">·</span>` +
-    `tap the matching ${dirLabel}<span class="sep">·</span>` +
-    `<span class="warn">miss one → back to card 1</span>`;
-}
-
 function renderStats(){
   el.streak.textContent = state.streak;
   el.best.textContent = state.best;
@@ -461,18 +452,16 @@ function renderMeter(){
   const pos = state.index + 1;
   el.meterBadge.textContent = pos;
   el.meterFill.style.width = (state.index / Math.max(1, len - 1) * 100) + "%";
-  const card = state.current;
-  el.meterHint.innerHTML =
-    `Card <b>${pos}</b> / ${len}` +
-    (card ? ` <span class="sep">·</span> ${card.year}` : "") +
-    ` <span class="sep">·</span> best run <b>${state.best}</b>`;
+  el.posText.textContent = `card ${pos}/${len}`;
+  el.yearText.textContent = state.current ? state.current.year : "—";
 }
 
 function flashMeter(dir){
-  el.meter.classList.remove("lvl-up","lvl-down");
-  void el.meter.offsetWidth;
-  el.meter.classList.add(dir === "up" ? "lvl-up" : "lvl-down");
-  setTimeout(() => el.meter.classList.remove("lvl-up","lvl-down"), 650);
+  const b = el.meterBadge;
+  b.classList.remove("lvl-up","lvl-down");
+  void b.offsetWidth;
+  b.classList.add(dir === "up" ? "lvl-up" : "lvl-down");
+  setTimeout(() => b.classList.remove("lvl-up","lvl-down"), 650);
 }
 
 function renderTimeline(card){
@@ -609,7 +598,7 @@ function switchCategory(catId){
   state.seq = buildSequence(state.cards, catId).map(c => c.id);
   state.index = 0; state.streak = 0; state.current = null;
   saveState();
-  renderTabs(); renderInstr(); renderStats();
+  renderTabs(); renderStats();
   el.overlay.hidden = true;
   renderCard();
 }
@@ -636,7 +625,7 @@ function overlayNext(){
 function toggleDirection(){
   state.direction = state.direction === "ab" ? "ba" : "ab";
   el.dirToggle.textContent = state.direction === "ab" ? "A→B" : "B→A";
-  saveState(); renderInstr();
+  saveState();
   if (state.current) renderCard();
 }
 
@@ -792,7 +781,7 @@ async function boot(){
     }
   });
 
-  renderTabs(); renderInstr(); renderStats();
+  renderTabs(); renderStats();
   enterIntro();   // show the 3D LLM overview first; "Begin ›" starts the deck
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

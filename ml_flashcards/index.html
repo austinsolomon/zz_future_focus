@@ -17,41 +17,23 @@
 <body class="is-intro">
   <div class="app">
 
-    <!-- HEADER -->
-    <header class="hdr">
-      <div class="hdr-left">
-        <span class="hdr-kicker">NEURAL NET EVOLUTION</span>
-        <h1 class="hdr-title">ML <span class="dot">·</span> Architectures</h1>
-      </div>
-      <div class="hdr-tools">
-        <button id="introBtn" class="icon-btn" title="LLM overview" aria-label="LLM overview">3D</button>
-        <button id="dirToggle" class="icon-btn" title="Flip direction (A↔B)" aria-label="Flip direction">A→B</button>
-        <button id="restartRunBtn" class="icon-btn" title="Restart from card 1" aria-label="Restart run">↺</button>
+    <!-- CONSOLIDATED TOP BAR -->
+    <header class="topbar">
+      <nav id="catTabs" class="cat-tabs" aria-label="Sections"></nav>
+      <div id="meter" class="metabar">
+        <span class="lvl" id="meterBadge">1</span>
+        <div class="meter-mid">
+          <div class="meter-bar" aria-hidden="true"><i id="meterFill"></i></div>
+          <div class="m-hint" id="meterHint"><span id="posText">card 1</span><span class="sep"> · </span><span id="yearText">—</span><span class="sep"> · </span><span id="streakChip">strk <b id="streak">0</b></span><span class="sep"> · </span>best <b id="best">0</b><span class="sep"> · </span><b id="score">0/0</b></div>
+        </div>
+        <span class="m-tools">
+          <button id="introBtn" class="icon-btn" title="LLM overview" aria-label="LLM overview">3D</button>
+          <button id="dirToggle" class="icon-btn" title="Flip direction (A↔B)" aria-label="Flip direction">A→B</button>
+          <button id="restartRunBtn" class="icon-btn" title="Restart section" aria-label="Restart section">↺</button>
+          <button id="resetBtn" class="icon-btn" title="Reset all progress" aria-label="Reset all">⌫</button>
+        </span>
       </div>
     </header>
-
-    <!-- CATEGORY TABS -->
-    <nav id="catTabs" class="cat-tabs" aria-label="Categories"></nav>
-
-    <!-- INSTRUCTIONS STRIP -->
-    <div id="instrStrip" class="instr-strip"></div>
-
-    <!-- STATS BAR -->
-    <div class="stats">
-      <div class="stat" id="streakChip"><span class="stat-k">Streak</span><span class="stat-v" id="streak">0</span></div>
-      <div class="stat"><span class="stat-k">Best</span><span class="stat-v" id="best">0</span></div>
-      <div class="stat"><span class="stat-k">Score</span><span class="stat-v" id="score">0/0</span></div>
-      <button id="resetBtn" class="reset-btn" title="Reset all progress">Reset</button>
-    </div>
-
-    <!-- RUN PROGRESS METER (separate element, under stats) -->
-    <div id="meter" class="meter">
-      <div class="meter-badge" id="meterBadge">1</div>
-      <div class="meter-body">
-        <div class="meter-bar" aria-hidden="true"><i id="meterFill"></i></div>
-        <div class="meter-hint" id="meterHint">Card 1</div>
-      </div>
-    </div>
 
     <!-- CARD STAGE -->
     <main class="stage" id="stage">
