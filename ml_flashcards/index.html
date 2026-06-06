@@ -25,7 +25,7 @@
       </div>
       <div class="hdr-tools">
         <button id="dirToggle" class="icon-btn" title="Flip direction (A↔B)" aria-label="Flip direction">A→B</button>
-        <button id="shuffleBtn" class="icon-btn" title="Shuffle" aria-label="Shuffle">⤮</button>
+        <button id="restartRunBtn" class="icon-btn" title="Restart from card 1" aria-label="Restart run">↺</button>
       </div>
     </header>
 
@@ -43,12 +43,12 @@
       <button id="resetBtn" class="reset-btn" title="Reset all progress">Reset</button>
     </div>
 
-    <!-- DIFFICULTY METER (separate element, under stats) -->
+    <!-- RUN PROGRESS METER (separate element, under stats) -->
     <div id="meter" class="meter">
-      <div class="meter-badge" id="meterBadge">L1</div>
+      <div class="meter-badge" id="meterBadge">1</div>
       <div class="meter-body">
-        <div class="meter-dots" id="meterDots" aria-hidden="true"></div>
-        <div class="meter-hint" id="meterHint">5 in a row → L2</div>
+        <div class="meter-bar" aria-hidden="true"><i id="meterFill"></i></div>
+        <div class="meter-hint" id="meterHint">Card 1</div>
       </div>
     </div>
 
@@ -67,6 +67,9 @@
           <span class="tl-min" id="tlMin"></span>
           <span class="tl-max" id="tlMax"></span>
         </div>
+
+        <!-- concept diagram (minimal schematic) -->
+        <div class="viz" id="viz" aria-hidden="true"></div>
 
         <div class="prompt" id="prompt">Loading deck…</div>
 
