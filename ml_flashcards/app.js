@@ -238,6 +238,87 @@ const DIAGRAMS = {
     s += T(160,18,"text → tokens → ids",8,P.m);
     return svg(s);
   },
+  supervised(){
+    let s = T(48,12,"labelled data",7,P.m);
+    s += RT(14,18,20,17,"rgba(92,214,239,.14)",P.c,3)+T(40,31,"→ dog",8,P.m,"start");
+    s += RT(14,44,20,17,"rgba(139,123,255,.14)",P.v,3)+T(40,57,"→ cat",8,P.m,"start");
+    s += L(92,40,120,40,P.m,1,true);
+    s += RT(124,27,54,26,"none",P.c,6)+T(151,44,"model",8,P.i);
+    s += L(180,40,204,40,P.m,1,true);
+    s += T(218,16,"new",7,P.m)+RT(208,24,22,20,"rgba(139,123,255,.10)",P.v,3);
+    s += L(232,34,250,34,P.m,1,true)+T(254,38,"cat",10,P.v,"start");
+    s += T(160,92,"learn from labelled examples → predict",7,P.m);
+    return svg(s);
+  },
+  clustering(){
+    const groups=[
+      [[[70,44],[84,54],[60,56],[78,40]], P.c],
+      [[[150,66],[164,72],[140,70],[156,58]], P.v],
+      [[[214,32],[228,40],[202,42],[224,28]], P.g],
+    ];
+    let s = T(160,14,"group by similarity — no labels",7,P.m);
+    groups.forEach(([pts,col])=>{
+      const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+      const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
+      s += `<ellipse cx="${cx}" cy="${cy}" rx="22" ry="17" fill="none" stroke="${col}" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>`;
+      s += pts.map(p=>C(p[0],p[1],3.6,col)).join("");
+    });
+    s += T(160,92,"clustering · unsupervised learning",7,P.m);
+    return svg(s);
+  },
+  overfit(){
+    let s = L(46,80,300,80,P.ln,1)+L(56,84,56,16,P.ln,1);
+    const pts=[[74,60],[104,52],[134,58],[164,44],[194,50],[224,36],[252,42]];
+    s += pts.map(p=>C(p[0],p[1],3,P.i)).join("");
+    s += PA("M68,64 L258,40",P.c,1.9);
+    s += PA("M74,60 L104,52 L134,58 L164,44 L194,50 L224,36 L252,42",P.v,1.4);
+    s += T(64,22,"good fit",8,P.c,"start")+T(64,34,"overfit",8,P.v,"start");
+    return svg(s);
+  },
+  dropout(){
+    const inL=[[44,26],[44,48],[44,70]], hid=[[152,20],[152,44],[152,68]], out=[[258,34],[258,58]];
+    const drop = new Set(["152,44"]);
+    let s="";
+    inL.forEach(a=>hid.forEach(b=>{ if(drop.has(b.join(","))) return; s+=L(a[0],a[1],b[0],b[1],P.ln,0.5); }));
+    hid.forEach(a=>{ if(drop.has(a.join(","))) return; out.forEach(b=>s+=L(a[0],a[1],b[0],b[1],P.ln,0.5)); });
+    s += inL.map(p=>C(p[0],p[1],5,P.c)).join("");
+    s += hid.map(p=>drop.has(p.join(",")) ? (C(p[0],p[1],5,"none",P.m)+T(p[0],p[1]+3.5,"×",11,P.b)) : C(p[0],p[1],5,P.v)).join("");
+    s += out.map(p=>C(p[0],p[1],5,P.c)).join("");
+    s += T(160,12,"randomly switch off neurons while training",7,P.m);
+    s += T(160,92,"dropout → fights overfitting",7,P.m);
+    return svg(s);
+  },
+  softmax(){
+    let s = T(58,12,"logits",7,P.m)+T(256,12,"probabilities",7,P.m);
+    [["1.0",1],["2.0",2],["3.0",3]].forEach((d,k)=>{ const x=38+k*26, h=8+d[1]*15;
+      s += RT(x,76-h,16,h,"rgba(92,214,239,.20)",P.c,2)+T(x+8,88,d[0],7,P.m); });
+    s += L(120,52,148,52,P.m,1,true)+T(170,42,"softmax",8,P.v);
+    s += L(192,52,210,52,P.m,1,true);
+    [["0.09",0.09],["0.24",0.24],["0.67",0.67]].forEach((d,k)=>{ const x=224+k*26, h=8+d[1]*46;
+      s += RT(x,76-h,16,h,"rgba(139,123,255,.22)",P.v,2)+T(x+8,88,d[0],7,P.m); });
+    return svg(s);
+  },
+  trainloop(){
+    let s = RT(18,28,28,22,"none",P.c,4)+T(32,43,"in",8,P.i);
+    s += L(46,39,70,39,P.m,1,true);
+    s += RT(72,26,52,26,"none",P.v,6)+T(98,43,"model",8,P.i);
+    s += L(124,39,146,39,P.m,1,true);
+    s += RT(148,28,28,22,"none",P.c,4)+T(162,43,"ŷ",9,P.i);
+    s += L(176,39,196,39,P.m,1,true);
+    s += RT(198,26,42,26,"none",P.b,6)+T(219,43,"loss",8,P.b);
+    s += T(248,43,"vs y",8,P.m,"start");
+    s += PA("M219,52 L219,72 L98,72 L98,52",P.v,1.3,true);
+    s += T(150,12,"forward pass → loss",7,P.m)+T(150,84,"backward pass → update weights",7,P.v);
+    return svg(s);
+  },
+  rl(){
+    let s = RT(26,30,66,30,"none",P.c,6)+T(59,49,"agent",8,P.i);
+    s += RT(228,30,66,30,"none",P.v,6)+T(261,49,"environment",7,P.i);
+    s += PA("M94,38 L226,38",P.m,1.3,true)+T(160,32,"action",7,P.m);
+    s += PA("M226,52 L94,52",P.m,1.3,true)+T(160,64,"state · reward",7,P.m);
+    s += T(160,14,"reinforcement learning loop",7,P.m);
+    return svg(s);
+  },
   network(){ return DIAGRAMS.mlp(); },
 };
 
@@ -245,8 +326,13 @@ const DIAGRAMS = {
 function vizFor(card){
   const t = (card.concept + " " + (card.b[0]||"") + " " + (card.tags||[]).join(" ")).toLowerCase();
   const rules = [
+    [/unsupervised|clustering|\bcluster\b|k-means/, "clustering"],
+    [/supervised/, "supervised"],
+    [/dropout/, "dropout"],
+    [/overfit|underfit|bias.?variance|regulari[sz]/, "overfit"],
+    [/softmax/, "softmax"],
     [/perceptron|mcculloch|single.?layer|artificial neuron/, "perceptron"],
-    [/relu|activation|sigmoid|softmax|saturation|tanh/, "activation"],
+    [/relu|activation|sigmoid|saturation|tanh/, "activation"],
     [/gradient descent|\bsgd\b|loss function|learning rate|adam|vanishing gradient|exploding|clipping|optimi/, "gradient"],
     [/lstm|\bgru\b|gate|cell state|forget|carousel|peephole/, "lstm"],
     [/seq2seq|sequence-to-sequence|encoder.?decoder|encoder–decoder|teacher forcing|context vector|bottleneck/, "seq2seq"],
@@ -258,9 +344,11 @@ function vizFor(card){
     [/embedding|word2vec|glove|one-hot|analogy|distributional|latent|cosine|dot product|contextual|elmo|skip-gram|cbow|sentence embed|negative sampling|clip|image embed|harris|recommendation/, "embedding"],
     [/token|byte-pair|\bbpe\b/, "tokens"],
     [/scaling|chinchilla|kaplan|emergent/, "scaling"],
-    [/rlhf|instruct|constitutional|rlaif|reward|alignment|\bhhh\b|helpful, harmless/, "rlhf"],
+    [/rlhf|instruct|constitutional|rlaif|\bhhh\b|helpful, harmless/, "rlhf"],
+    [/reinforcement/, "rl"],
     [/agent|tool use|react|claude code|\bmcp\b|agentic|chain-of-thought/, "agent"],
     [/transformer|attention is all|bert|gpt|\bt5\b|decoder-only|causal|masked|mixture of experts|kv cache|block anatomy|next-token|autoregressive/, "transformer"],
+    [/backpropagation|\bepoch\b/, "trainloop"],
     [/mlp|multilayer|hidden layer|backprop|feedforward|credit assignment/, "mlp"],
   ];
   for (const [re, type] of rules) if (re.test(t)) return type;
