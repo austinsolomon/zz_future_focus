@@ -876,3 +876,104 @@ body {
 .speak-btn svg { display: block; }
 /* Inline in the prompt row use a slightly smaller chip */
 #promptSpeak { width: 30px; height: 28px; }
+
+/* ---------- verb tap-to-conjugate ---------- */
+.verb-tap {
+  background: linear-gradient(transparent 60%, rgba(255,230,0,0.55) 60%);
+  cursor: pointer;
+  position: relative;
+  padding-right: 11px;
+  border-radius: 2px;
+}
+.verb-tap::after {
+  content: '▾';
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 0.7em;
+  color: var(--purple);
+  line-height: 1.4;
+}
+.verb-tap:active { background: rgba(255,230,0,0.85); }
+
+.verb-accordion {
+  margin: 6px 0 0 0;
+  padding: 0 10px;
+  background: linear-gradient(180deg, #fff0fa, #ffe2f3);
+  border: 2px solid var(--purple);
+  border-radius: 10px;
+  font-size: 12px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 320ms ease, padding 320ms ease;
+  box-shadow: 0 2px 0 rgba(157,78,221,0.4);
+}
+.verb-accordion.open {
+  max-height: 320px;
+  padding: 8px 10px;
+}
+.vc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--purple);
+  font-weight: 800;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px dashed rgba(157,78,221,0.4);
+}
+.vc-head strong {
+  font-size: 13px;
+  color: var(--hot);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 900;
+}
+.vc-row {
+  display: grid;
+  grid-template-columns: 64px 60px 1fr 22px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px dotted rgba(157,78,221,0.18);
+}
+.vc-row:last-child { border-bottom: none; }
+.vc-pn {
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 11px;
+}
+.vc-pn-en {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-style: italic;
+}
+.vc-form {
+  color: #d6249f;
+  font-weight: 800;
+  font-size: 13px;
+  text-align: right;
+  padding-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.vc-speak {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--cyan);
+  color: #003a4a;
+  border: 1.5px solid #fff;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 #006a80;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+.vc-speak.playing { background: var(--lime); }
+.vc-speak:active { transform: translateY(1px); box-shadow: 0 0 0 #006a80; }
+.vc-speak svg { display: block; }
