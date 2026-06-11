@@ -92,6 +92,93 @@ function categoryLabel(id) { const c = state.categories.find(c => c.id === id); 
 
 const LABELS = { en: 'English', gr: 'Greek', phon: 'Phonetic' };
 
+// ---------- verb conjugation tables ----------
+// Present-tense paradigms for the most common Greek verbs in the deck.
+// Order: 1sg, 2sg, 3sg, 1pl, 2pl, 3pl.
+const VERB_CONJUGATIONS = {
+  'θέλω':       ['θέλω','θέλεις','θέλει','θέλουμε','θέλετε','θέλουν'],
+  'έχω':        ['έχω','έχεις','έχει','έχουμε','έχετε','έχουν'],
+  'είμαι':      ['είμαι','είσαι','είναι','είμαστε','είστε','είναι'],
+  'ξέρω':       ['ξέρω','ξέρεις','ξέρει','ξέρουμε','ξέρετε','ξέρουν'],
+  'βλέπω':      ['βλέπω','βλέπεις','βλέπει','βλέπουμε','βλέπετε','βλέπουν'],
+  'κάνω':       ['κάνω','κάνεις','κάνει','κάνουμε','κάνετε','κάνουν'],
+  'μένω':       ['μένω','μένεις','μένει','μένουμε','μένετε','μένουν'],
+  'πάω':        ['πάω','πας','πάει','πάμε','πάτε','πάνε'],
+  'πηγαίνω':    ['πηγαίνω','πηγαίνεις','πηγαίνει','πηγαίνουμε','πηγαίνετε','πηγαίνουν'],
+  'πίνω':       ['πίνω','πίνεις','πίνει','πίνουμε','πίνετε','πίνουν'],
+  'τρώω':       ['τρώω','τρως','τρώει','τρώμε','τρώτε','τρώνε'],
+  'διαβάζω':    ['διαβάζω','διαβάζεις','διαβάζει','διαβάζουμε','διαβάζετε','διαβάζουν'],
+  'γράφω':      ['γράφω','γράφεις','γράφει','γράφουμε','γράφετε','γράφουν'],
+  'δουλεύω':    ['δουλεύω','δουλεύεις','δουλεύει','δουλεύουμε','δουλεύετε','δουλεύουν'],
+  'αγοράζω':    ['αγοράζω','αγοράζεις','αγοράζει','αγοράζουμε','αγοράζετε','αγοράζουν'],
+  'δίνω':       ['δίνω','δίνεις','δίνει','δίνουμε','δίνετε','δίνουν'],
+  'παίρνω':     ['παίρνω','παίρνεις','παίρνει','παίρνουμε','παίρνετε','παίρνουν'],
+  'λέω':        ['λέω','λες','λέει','λέμε','λέτε','λένε'],
+  'μπορώ':      ['μπορώ','μπορείς','μπορεί','μπορούμε','μπορείτε','μπορούν'],
+  'μιλάω':      ['μιλάω','μιλάς','μιλάει','μιλάμε','μιλάτε','μιλάνε'],
+  'αγαπώ':      ['αγαπώ','αγαπάς','αγαπάει','αγαπάμε','αγαπάτε','αγαπάνε'],
+  'περιμένω':   ['περιμένω','περιμένεις','περιμένει','περιμένουμε','περιμένετε','περιμένουν'],
+  'καταλαβαίνω':['καταλαβαίνω','καταλαβαίνεις','καταλαβαίνει','καταλαβαίνουμε','καταλαβαίνετε','καταλαβαίνουν'],
+  'βοηθάω':     ['βοηθάω','βοηθάς','βοηθάει','βοηθάμε','βοηθάτε','βοηθάνε'],
+  'φεύγω':      ['φεύγω','φεύγεις','φεύγει','φεύγουμε','φεύγετε','φεύγουν'],
+  'αρχίζω':     ['αρχίζω','αρχίζεις','αρχίζει','αρχίζουμε','αρχίζετε','αρχίζουν'],
+  'ξεκινάω':    ['ξεκινάω','ξεκινάς','ξεκινάει','ξεκινάμε','ξεκινάτε','ξεκινάνε'],
+  'τελειώνω':   ['τελειώνω','τελειώνεις','τελειώνει','τελειώνουμε','τελειώνετε','τελειώνουν'],
+  'κοιτάζω':    ['κοιτάζω','κοιτάζεις','κοιτάζει','κοιτάζουμε','κοιτάζετε','κοιτάζουν'],
+  'προσέχω':    ['προσέχω','προσέχεις','προσέχει','προσέχουμε','προσέχετε','προσέχουν'],
+  'χάνω':       ['χάνω','χάνεις','χάνει','χάνουμε','χάνετε','χάνουν'],
+  'καλώ':       ['καλώ','καλείς','καλεί','καλούμε','καλείτε','καλούν'],
+  'στρώνω':     ['στρώνω','στρώνεις','στρώνει','στρώνουμε','στρώνετε','στρώνουν'],
+  'πληρώνω':    ['πληρώνω','πληρώνεις','πληρώνει','πληρώνουμε','πληρώνετε','πληρώνουν'],
+  'στέλνω':     ['στέλνω','στέλνεις','στέλνει','στέλνουμε','στέλνετε','στέλνουν'],
+  'ξεχνάω':     ['ξεχνάω','ξεχνάς','ξεχνάει','ξεχνάμε','ξεχνάτε','ξεχνάνε'],
+  'πεινάω':     ['πεινάω','πεινάς','πεινάει','πεινάμε','πεινάτε','πεινάνε'],
+  'ζω':         ['ζω','ζεις','ζει','ζούμε','ζείτε','ζουν'],
+  'μαθαίνω':    ['μαθαίνω','μαθαίνεις','μαθαίνει','μαθαίνουμε','μαθαίνετε','μαθαίνουν'],
+  'βάζω':       ['βάζω','βάζεις','βάζει','βάζουμε','βάζετε','βάζουν'],
+  'βγάζω':      ['βγάζω','βγάζεις','βγάζει','βγάζουμε','βγάζετε','βγάζουν'],
+  'κλείνω':     ['κλείνω','κλείνεις','κλείνει','κλείνουμε','κλείνετε','κλείνουν'],
+  'ανοίγω':     ['ανοίγω','ανοίγεις','ανοίγει','ανοίγουμε','ανοίγετε','ανοίγουν'],
+  'πλένω':      ['πλένω','πλένεις','πλένει','πλένουμε','πλένετε','πλένουν'],
+  'περνάω':     ['περνάω','περνάς','περνάει','περνάμε','περνάτε','περνάνε'],
+  'γίνομαι':    ['γίνομαι','γίνεσαι','γίνεται','γινόμαστε','γίνεστε','γίνονται'],
+  'κοιμάμαι':   ['κοιμάμαι','κοιμάσαι','κοιμάται','κοιμόμαστε','κοιμάστε','κοιμούνται'],
+  'χρειάζομαι': ['χρειάζομαι','χρειάζεσαι','χρειάζεται','χρειαζόμαστε','χρειάζεστε','χρειάζονται'],
+  'αισθάνομαι': ['αισθάνομαι','αισθάνεσαι','αισθάνεται','αισθανόμαστε','αισθάνεστε','αισθάνονται'],
+  'ταξιδεύω':   ['ταξιδεύω','ταξιδεύεις','ταξιδεύει','ταξιδεύουμε','ταξιδεύετε','ταξιδεύουν'],
+  'μαγειρεύω':  ['μαγειρεύω','μαγειρεύεις','μαγειρεύει','μαγειρεύουμε','μαγειρεύετε','μαγειρεύουν'],
+  'επιμένω':    ['επιμένω','επιμένεις','επιμένει','επιμένουμε','επιμένετε','επιμένουν'],
+  'στρίβω':     ['στρίβω','στρίβεις','στρίβει','στρίβουμε','στρίβετε','στρίβουν'],
+};
+const PRONOUNS_GR = ['εγώ','εσύ','αυτός/-ή','εμείς','εσείς','αυτοί/-ές'];
+const PRONOUNS_EN = ['I','you (sg)','he/she','we','you (pl)','they'];
+
+// Reverse index: any conjugated form → lemma (1sg)
+const FORM_TO_LEMMA = {};
+for (const [lemma, forms] of Object.entries(VERB_CONJUGATIONS)) {
+  for (const form of forms) {
+    FORM_TO_LEMMA[form.toLowerCase()] = lemma;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+// Wrap any known-verb token in a tappable span. Greek-letter sequences only.
+function wrapVerbs(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/[Α-Ωα-ωΆ-Ώά-ώϊϋΐΰΪΫ]+/g, (word) => {
+    const lc = word.toLowerCase();
+    const lemma = FORM_TO_LEMMA[lc];
+    if (lemma) {
+      return `<span class="verb-tap" data-lemma="${lemma}" role="button" tabindex="0">${word}</span>`;
+    }
+    return word;
+  });
+}
+
 // ---------- persistence ----------
 function loadStats() {
   return {
@@ -508,7 +595,11 @@ function render() {
   const promptKey = state.direction === 'en-to-gr' ? 'en' : 'gr';
   const answerKey = state.direction === 'en-to-gr' ? 'gr' : 'en';
   const promptText = (card[promptKey] || [])[0] || '';
-  els.prompt.textContent = promptText;
+  if (promptKey === 'gr') {
+    els.prompt.innerHTML = wrapVerbs(promptText);
+  } else {
+    els.prompt.textContent = promptText;
+  }
   // Speak button on prompt row: visible whenever prompt is in Greek.
   if (els.promptSpeak) {
     if (promptKey === 'gr' && promptText) {
@@ -534,7 +625,12 @@ function render() {
     row.className = 'row ans-row';
     const text = document.createElement('div');
     text.className = 'ans-text ans-' + k;
-    text.textContent = lines(card[k]);
+    const raw = lines(card[k]);
+    if (k === 'gr') {
+      text.innerHTML = wrapVerbs(raw);
+    } else {
+      text.textContent = raw;
+    }
     row.appendChild(text);
     // Speaker button for Greek (always) and English (if not Greek mode)
     if (k === 'gr' || k === 'en') {
@@ -710,11 +806,55 @@ if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => {};
 }
 
+// ---------- verb conjugation accordion ----------
+function buildVerbAccordion(lemma) {
+  const forms = VERB_CONJUGATIONS[lemma];
+  if (!forms) return null;
+  const div = document.createElement('div');
+  div.className = 'verb-accordion';
+  div.dataset.lemma = lemma;
+  let html = `<div class="vc-head"><span>Present tense</span><strong>${escapeHtml(lemma)}</strong></div>`;
+  for (let i = 0; i < 6; i++) {
+    html += `<div class="vc-row">`
+         +  `<span class="vc-pn">${escapeHtml(PRONOUNS_GR[i])}</span>`
+         +  `<span class="vc-pn-en">${escapeHtml(PRONOUNS_EN[i])}</span>`
+         +  `<span class="vc-form">${escapeHtml(forms[i])}</span>`
+         +  `<button class="vc-speak" type="button" data-speak-text="${escapeHtml(forms[i])}" data-speak-lang="el-GR" aria-label="Pronounce ${escapeHtml(forms[i])}">`
+         +    `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/></svg>`
+         +  `</button>`
+         +  `</div>`;
+  }
+  div.innerHTML = html;
+  return div;
+}
+function toggleVerbAccordion(lemma, sourceEl) {
+  // Place the accordion just below whatever block holds the tapped word
+  // (prompt-row, ans-block, etc.) so it never overlaps neighbors.
+  const host = sourceEl.closest('.ans-block') || sourceEl.closest('.prompt-row');
+  if (!host) return;
+  let acc = host.querySelector(':scope > .verb-accordion');
+  if (acc && acc.dataset.lemma === lemma) {
+    acc.classList.toggle('open');
+    return;
+  }
+  if (acc) acc.remove();
+  acc = buildVerbAccordion(lemma);
+  if (!acc) return;
+  host.appendChild(acc);
+  requestAnimationFrame(() => acc.classList.add('open'));
+}
+
 document.addEventListener('click', e => {
-  const sp = e.target.closest('.speak-btn');
+  const sp = e.target.closest('.speak-btn, .vc-speak');
   if (sp) {
     e.preventDefault(); e.stopPropagation();
     speak(sp.dataset.speakText || '', sp.dataset.speakLang || 'el-GR', sp);
+    return;
+  }
+  const v = e.target.closest('.verb-tap');
+  if (v) {
+    e.preventDefault(); e.stopPropagation();
+    toggleVerbAccordion(v.dataset.lemma, v);
     return;
   }
   const btn = e.target.closest('.copy-btn');
